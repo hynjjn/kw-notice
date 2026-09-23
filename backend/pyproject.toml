@@ -14,6 +14,7 @@ dependencies = [
     "lxml>=5.3",
     "apscheduler>=3.11",
     "anthropic>=0.40",
+    "nh3>=0.2.18",
 ]
 
 [tool.setuptools.packages.find]

@@ -35,6 +35,8 @@ export interface Notice {
 }
 
 export interface NoticeDetail extends Notice {
+  /** 정제를 거친 원본 HTML. 서식과 이미지 위치가 여기에만 남아 있다. */
+  body_html: string | null;
   body_text: string | null;
   inline_image_urls: string[] | null;
   attachments: Attachment[];

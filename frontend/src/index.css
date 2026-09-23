@@ -95,3 +95,60 @@ body {
     color: var(--chip-text);
   }
 }
+
+/* 공지 본문. 서버에서 정제한 원본 HTML 이 여기에 들어온다.
+   학교 게시판 HTML 은 한글(HWP)과 웹에디터에서 나온 것이 섞여 있어
+   기본 여백이 제각각이다. 최소한의 규칙만 덮어씌운다. */
+.notice-body {
+  font-size: 14.5px;
+  line-height: 1.85;
+  color: var(--body-text);
+  overflow-wrap: anywhere;
+}
+.notice-body p {
+  margin: 0 0 0.35em;
+  /* 본문 대부분이 <p>&nbsp;</p> 로 줄바꿈을 만든다. 빈 문단이 접히면
+     원문과 간격이 달라지므로 접지 않는다. */
+  min-height: 1em;
+}
+.notice-body b,
+.notice-body strong {
+  font-weight: 700;
+  color: var(--text);
+}
+.notice-body img {
+  max-width: 100%;
+  height: auto;
+  margin: 0.75rem 0;
+  border-radius: 8px;
+}
+.notice-body a {
+  color: var(--unread);
+  text-decoration: underline;
+}
+.notice-body table {
+  border-collapse: collapse;
+  margin: 0.75rem 0;
+  max-width: 100%;
+}
+.notice-body td,
+.notice-body th {
+  border: 1px solid var(--line);
+  padding: 6px 10px;
+  vertical-align: middle;
+}
+.notice-body th {
+  background: var(--chip-bg);
+  font-weight: 700;
+}
+.notice-body ul,
+.notice-body ol {
+  margin: 0.5rem 0;
+  padding-left: 1.4rem;
+  list-style: revert;
+}
+.notice-body hr {
+  border: 0;
+  border-top: 1px solid var(--line);
+  margin: 1rem 0;
+}

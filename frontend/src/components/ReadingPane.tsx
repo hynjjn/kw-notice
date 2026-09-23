@@ -79,7 +79,15 @@ export function ReadingPane({
         </div>
       )}
 
-      {notice.body_text ? (
+      {/* 서버에서 nh3 로 정제한 HTML 이다. script, 이벤트 핸들러, 글자색은
+          이미 걷혔다. 평문으로 바꿔 보여 주면 굵기와 크기가 사라지고,
+          본문 중간에 있던 포스터가 전부 글 뒤로 밀린다. */}
+      {notice.body_html ? (
+        <div
+          className="notice-body"
+          dangerouslySetInnerHTML={{ __html: notice.body_html }}
+        />
+      ) : notice.body_text ? (
         <div
           className="text-[14.5px] leading-[1.85] whitespace-pre-line"
           style={{ color: "var(--body-text)" }}
@@ -88,14 +96,9 @@ export function ReadingPane({
         </div>
       ) : (
         <div className="text-[13px]" style={{ color: "var(--faint)" }}>
-          본문 글자가 없는 공지입니다. 아래 이미지가 내용입니다.
+          본문을 불러오지 못했습니다.
         </div>
       )}
-
-      {/* 본문이 포스터 이미지뿐인 공지가 전체의 23%다. */}
-      {notice.inline_image_urls?.map((src) => (
-        <img key={src} className="my-3 max-w-full rounded-lg" src={src} alt="" loading="lazy" />
-      ))}
 
       {notice.attachments.length > 0 && (
         <div className="mt-6 flex flex-wrap gap-2.5">

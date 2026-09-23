@@ -54,6 +54,9 @@ class NoticeListItem(NoticeBase):
 
 
 class NoticeDetail(NoticeBase):
+    # 정제를 거친 원본 HTML. 서식과 이미지 위치가 여기에만 남아 있다.
+    body_html: str | None
+    # 요약(vision)과 body_html 이 없을 때의 대비책으로 남긴다.
     body_text: str | None
     inline_image_urls: list[str] | None
     attachments: list[AttachmentOut]

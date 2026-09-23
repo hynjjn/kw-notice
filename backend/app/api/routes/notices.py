@@ -8,6 +8,7 @@ from sqlalchemy import Select, exists, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_session
+from app.api.sanitize import to_safe_html
 from app.api.schemas import (
     AttachmentOut,
     NoticeDetail,
@@ -193,6 +194,7 @@ def get_notice(
     item = _to_item(row)
     return NoticeDetail(
         **item.model_dump(),
+        body_html=to_safe_html(notice.body_html, notice.url),
         body_text=notice.body_text,
         inline_image_urls=notice.inline_image_urls,
         attachments=[
