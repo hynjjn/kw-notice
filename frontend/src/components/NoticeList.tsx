@@ -86,36 +86,19 @@ function Row({
 }
 
 export function NoticeList({ notices, selectedId, onSelect, onToggleStar }: Props) {
-  const pinned = notices.filter((n) => n.is_pinned);
-  const rest = notices.filter((n) => !n.is_pinned);
-
-  const heading = (text: string) => (
-    <div
-      className="px-4 pt-2.5 pb-1.5 text-[11px] font-bold tracking-wide"
-      style={{ color: "var(--faint)" }}
-    >
-      {text}
-    </div>
-  );
-
-  const render = (n: Notice) => (
-    <Row
-      key={n.id}
-      notice={n}
-      selected={n.id === selectedId}
-      onSelect={() => onSelect(n)}
-      onToggleStar={() => onToggleStar(n)}
-    />
-  );
-
+  // 고정 여부로 섹션을 가르지 않는다. "전체 공지"가 고정을 빼고 보여 주고,
+  // 고정만 보려면 사이드바에 전용 항목이 따로 있다.
   return (
     <>
-      {/* 고정 공지를 따로 접어 두는 게 이 서비스의 존재 이유다.
-          학교 사이트는 68건 중 58건이 고정이라 새 공지가 파묻힌다. */}
-      {rest.length > 0 && heading(`🆕 새 공지 ${rest.length}건`)}
-      {rest.map(render)}
-      {pinned.length > 0 && heading(`📌 고정 공지 ${pinned.length}건`)}
-      {pinned.map(render)}
+      {notices.map((n) => (
+        <Row
+          key={n.id}
+          notice={n}
+          selected={n.id === selectedId}
+          onSelect={() => onSelect(n)}
+          onToggleStar={() => onToggleStar(n)}
+        />
+      ))}
     </>
   );
 }

@@ -46,7 +46,13 @@ export function Sidebar({ stats, filter, onChange }: Props) {
 
   return (
     <nav className="overflow-y-auto px-2 py-3">
-      {item("전체 공지", "📥", {}, stats?.total)}
+      {/* 고정 공지는 아래 전용 항목이 있다. 여기서 또 섞으면 59건이 목록을 덮는다. */}
+      {item(
+        "전체 공지",
+        "📥",
+        { pinned: false },
+        stats && stats.total - stats.pinned,
+      )}
       {item("안 읽음", "✳️", { unread: true }, stats?.unread)}
       {item("별표", "⭐", { starred: true }, stats?.starred)}
       {item("고정 공지", "📌", { pinned: true }, stats?.pinned)}

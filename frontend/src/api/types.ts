@@ -80,7 +80,7 @@ export interface NoticeQuery {
   starred?: boolean;
   deadline_soon?: boolean;
   q?: string;
-  sort?: "posted" | "modified" | "views" | "deadline";
+  sort?: "seen" | "posted" | "modified" | "views" | "deadline";
   limit?: number;
   offset?: number;
 }

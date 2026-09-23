@@ -10,14 +10,15 @@ import type { Notice } from "./api/types";
 const today = new Date().toISOString().slice(0, 10);
 
 export default function App() {
-  const [filter, setFilter] = useState<Filter>({});
+  // 첫 화면은 사이드바의 "전체 공지"와 같은 상태여야 한다.
+  const [filter, setFilter] = useState<Filter>({ pinned: false });
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<number | null>(null);
 
   const query = useMemo(
-    // 정렬 기본값이 작성일인 게 핵심이다. 학교 사이트는 수정일로 정렬해서
-    // 오래된 공지가 위로 올라온다.
-    () => ({ ...filter, q: search || undefined, sort: "posted" as const, limit: 100 }),
+    // 우리가 처음 본 순서로 줄 세운다. 오래된 공지가 수정돼서 다시 올라온
+    // 경우도 맨 위에 잡힌다.
+    () => ({ ...filter, q: search || undefined, sort: "seen" as const, limit: 100 }),
     [filter, search],
   );
 

@@ -39,8 +39,14 @@ SOURCE_PRIORITY = case({"kw_main": 0, "cs_dept": 1}, value=Source.key, else_=99)
 EXTERNAL_SEQ = cast(Notice.external_id, BigInteger).desc()
 
 SORTS = {
-    # 기본값이 작성일인 게 핵심이다. 학교 사이트는 수정일로 정렬해서
-    # 8월 공지가 어제 공지보다 위에 온다. 그게 안 보이던 원인이다.
+    # 기본값. "우리가 처음 본 순서"다.
+    #
+    # 작성일순으로는 잡히지 않는 게 있다. 7월에 올라온 공지가 기간 연장으로
+    # 어제 수정되면 학교 목록 1페이지로 떠오르는데, 작성일로 줄 세우면
+    # 102건 중 91번째로 묻힌다. 학생에게는 어제 뜬 새 소식인데도.
+    # first_seen_at 은 그런 글을 맨 위로 올린다.
+    "seen": Notice.first_seen_at.desc(),
+    # 학교 사이트는 수정일로 정렬해서 8월 공지가 어제 공지보다 위에 온다.
     "posted": Notice.posted_at.desc(),
     "modified": Notice.modified_at_source.desc().nulls_last(),
     "views": Notice.view_count.desc(),
@@ -168,7 +174,7 @@ def list_notices(
     starred: bool | None = None,
     deadline_soon: bool = False,
     q: str | None = Query(None, description="제목, 본문, 첨부 본문 검색"),
-    sort: Literal["posted", "modified", "views", "deadline"] = "posted",
+    sort: Literal["seen", "posted", "modified", "views", "deadline"] = "seen",
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
 ) -> NoticeListResponse:
