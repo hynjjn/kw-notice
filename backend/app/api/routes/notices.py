@@ -4,7 +4,7 @@ import datetime as dt
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import Select, exists, func, or_, select
+from sqlalchemy import BigInteger, Select, case, cast, exists, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_session
@@ -21,6 +21,22 @@ from app.models import Attachment, CrawlState, ExtractState, Notice, Source, Use
 router = APIRouter(prefix="/notices", tags=["notices"])
 
 DEADLINE_SOON_DAYS = 7
+
+# 같은 날짜 안에서 두 출처가 겹칠 때의 우선순위.
+# 학부 공지는 대부분 대학 공지를 재공지하는 성격이라 뒤에 둔다.
+# 출처가 늘면 sources 테이블의 컬럼으로 옮기는 게 맞다.
+SOURCE_PRIORITY = case({"kw_main": 0, "cs_dept": 1}, value=Source.key, else_=99)
+
+# 사이트가 시각을 주지 않아서(작성일까지만 있다) 같은 날짜 안의 순서를
+# 따로 정해야 한다. DUID(대학)와 no(학부)는 글이 올라올 때마다 1씩 오르는
+# 값이라 게시 순서를 정확히 반영한다. 수집한 98건 전부에서 작성일 순서와
+# 어긋나는 경우가 없었다.
+#
+# 문자열 그대로 비교하면 안 된다. 지금은 다섯 자리라 사전순이 우연히 맞지만
+# 여섯 자리가 되는 순간 '100001' < '53385' 로 뒤집힌다.
+#
+# 두 출처 모두 external_id 가 숫자다. 숫자가 아닌 출처가 생기면 여기서 터진다.
+EXTERNAL_SEQ = cast(Notice.external_id, BigInteger).desc()
 
 SORTS = {
     # 기본값이 작성일인 게 핵심이다. 학교 사이트는 수정일로 정렬해서
@@ -172,7 +188,9 @@ def list_notices(
     )
 
     rows = session.execute(
-        stmt.order_by(SORTS[sort], Notice.id.desc()).limit(limit).offset(offset)
+        stmt.order_by(SORTS[sort], SOURCE_PRIORITY, EXTERNAL_SEQ)
+        .limit(limit)
+        .offset(offset)
     ).all()
 
     return NoticeListResponse(
