@@ -1,0 +1,22 @@
+name: kw-notice
+
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: kw-notice-db
+    environment:
+      POSTGRES_USER: kwnotice
+      POSTGRES_PASSWORD: kwnotice
+      POSTGRES_DB: kwnotice
+      TZ: Asia/Seoul
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kwnotice"]
+      interval: 5s
+      retries: 10
+
+volumes:
+  pgdata:

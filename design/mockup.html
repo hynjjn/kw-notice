@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KW Notice</title>
+<style>
+  :root{
+    --bg:#f6f8fc; --surface:#fff; --line:#e3e6ea; --line-soft:#f1f3f4;
+    --text:#1f1f1f; --body-text:#3c4043; --muted:#5f6368; --faint:#9aa0a6;
+    --accent:#8b1a1a; --accent-fg:#fff; --accent-soft:#fdecec;
+    --star:#f4b400; --unread:#0b57d0;
+    --hover:#f7f9fd; --nav-hover:#eaeef6; --sel:#e8f0fe; --search-bg:#eaeef6;
+    --chip-bg:#eef1f5; --chip-text:#4a5157; --cs-bg:#e6f0ff; --cs-text:#1a56b3;
+    --digest-bg:linear-gradient(135deg,#fdecec,#eef2ff); --digest-line:#f0d6d6;
+    --ai-bg:#f1f5ff; --ai-line:#d9e2ff;
+    --ok-bg:#e6f4ea; --ok-text:#137333;
+    --avatar-bg:#dfe3ea; --star-off:#c6cad0;
+    --shadow:0 14px 44px rgba(0,0,0,.2);
+    --radius:14px;
+  }
+  :root[data-theme="dark"]{
+    --bg:#16181c; --surface:#1e2025; --line:#33363c; --line-soft:#2a2d33;
+    --text:#e8eaed; --body-text:#c3c7cc; --muted:#9aa0a6; --faint:#7c8085;
+    --accent:#ff9a9a; --accent-fg:#2a1212; --accent-soft:#3a2224;
+    --star:#f4c430; --unread:#8ab4f8;
+    --hover:#25282e; --nav-hover:#272a30; --sel:#2b3648; --search-bg:#2a2d33;
+    --chip-bg:#2e3138; --chip-text:#c3c7cc; --cs-bg:#1f3050; --cs-text:#9ec3ff;
+    --digest-bg:linear-gradient(135deg,#3a2224,#232a44); --digest-line:#46323a;
+    --ai-bg:#1e2740; --ai-line:#2f3d5e;
+    --ok-bg:#1c3325; --ok-text:#81c995;
+    --avatar-bg:#33363c; --star-off:#55595f;
+    --shadow:0 14px 44px rgba(0,0,0,.55);
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font:14px/1.5 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard","Segoe UI",sans-serif;}
+  button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+
+  /* ── top bar ─────────────────────────────── */
+  header{height:60px;display:flex;align-items:center;gap:16px;padding:0 16px;
+    background:var(--surface);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:20}
+  .brand{display:flex;align-items:center;gap:9px;font-size:18px;font-weight:700;letter-spacing:-.3px}
+  .brand .dot{width:22px;height:22px;border-radius:7px;background:var(--accent);color:var(--accent-fg);
+    display:grid;place-items:center;font-size:12px;font-weight:800}
+  .search{flex:1;max-width:680px;display:flex;align-items:center;gap:10px;height:42px;padding:0 16px;
+    background:var(--search-bg);border-radius:999px;color:var(--muted)}
+  .search input{flex:1;border:0;background:none;outline:none;font:inherit;color:var(--text)}
+  .themebtn{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;font-size:16px}
+  .themebtn:hover{background:var(--nav-hover)}
+  .avatar{width:32px;height:32px;border-radius:50%;background:var(--avatar-bg);display:grid;place-items:center;
+    font-weight:700;font-size:12px;color:var(--muted)}
+
+  /* ── layout ──────────────────────────────── */
+  .shell{display:grid;grid-template-columns:212px minmax(340px,440px) 1fr;
+    height:calc(100vh - 60px);overflow:hidden}
+  nav{padding:12px 8px;overflow-y:auto}
+  .navbtn{width:100%;display:flex;align-items:center;gap:12px;padding:8px 14px;border-radius:999px;
+    color:var(--muted);text-align:left}
+  .navbtn .ico{width:18px;text-align:center}
+  .navbtn .cnt{margin-left:auto;font-size:12px;font-weight:600}
+  .navbtn:hover{background:var(--nav-hover)}
+  .navbtn.on{background:var(--accent-soft);color:var(--accent);font-weight:700}
+  .navlabel{padding:14px 16px 6px;font-size:11px;font-weight:700;color:var(--faint);letter-spacing:.6px}
+
+  /* ── list column ─────────────────────────── */
+  .list{background:var(--surface);border-left:1px solid var(--line);border-right:1px solid var(--line);
+    overflow-y:auto}
+  .digest{margin:12px;padding:14px 16px;border-radius:var(--radius);
+    background:var(--digest-bg);border:1px solid var(--digest-line)}
+  .digest h3{margin:0 0 8px;font-size:13px;font-weight:800;color:var(--accent);
+    display:flex;align-items:center;gap:6px}
+  .digest ul{margin:0;padding-left:18px;color:var(--body-text)}
+  .digest li{margin:3px 0}
+  .digest .more{margin-top:10px;font-size:12px;font-weight:700;color:var(--unread)}
+
+  .secthead{padding:10px 16px 6px;font-size:11px;font-weight:700;color:var(--faint);letter-spacing:.6px;
+    display:flex;align-items:center;gap:6px}
+  .row{display:grid;grid-template-columns:20px 20px 1fr;gap:10px;align-items:start;
+    padding:11px 16px;border-bottom:1px solid var(--line-soft);cursor:pointer}
+  .row:hover{background:var(--hover);box-shadow:inset 3px 0 0 var(--accent)}
+  .row.sel{background:var(--sel);box-shadow:inset 3px 0 0 var(--unread)}
+  .row .star{color:var(--star-off);font-size:15px;line-height:1.3}
+  .row .star.on{color:var(--star)}
+  .row .pin{color:var(--star-off);font-size:13px;line-height:1.4}
+  .row .pin.on{color:var(--accent)}
+  .meta{display:flex;align-items:center;gap:6px;margin-bottom:2px;font-size:11px;color:var(--muted)}
+  .tag{padding:1px 7px;border-radius:999px;background:var(--chip-bg);font-weight:700;font-size:10px;
+    color:var(--chip-text)}
+  .tag.cs{background:var(--cs-bg);color:var(--cs-text)}
+  .title{font-size:13.5px;color:var(--body-text);display:-webkit-box;-webkit-line-clamp:2;
+    -webkit-box-orient:vertical;overflow:hidden}
+  .row.unread .title{font-weight:700;color:var(--text)}
+  .row.unread .meta{color:var(--body-text)}
+  .sub{margin-top:3px;font-size:11.5px;color:var(--faint);display:flex;gap:8px}
+
+  /* ── reading pane ────────────────────────── */
+  .pane{overflow-y:auto;padding:22px 30px 60px}
+  .pane h1{margin:0 0 6px;font-size:21px;line-height:1.35;letter-spacing:-.3px}
+  .paneMeta{display:flex;flex-wrap:wrap;gap:10px;align-items:center;color:var(--muted);font-size:12.5px;
+    padding-bottom:14px;border-bottom:1px solid var(--line)}
+  .aibox{margin:18px 0;padding:14px 16px;border-radius:var(--radius);background:var(--ai-bg);
+    border:1px solid var(--ai-line)}
+  .aibox h4{margin:0 0 7px;font-size:12px;font-weight:800;color:var(--unread)}
+  .aibox ul{margin:0;padding-left:18px}
+  .body{font-size:14.5px;line-height:1.85;color:var(--body-text)}
+  .body p{margin:0 0 14px}
+  .files{margin-top:22px;display:flex;flex-wrap:wrap;gap:10px}
+  .file{display:flex;align-items:center;gap:8px;padding:9px 13px;border:1px solid var(--line);
+    border-radius:10px;background:var(--surface);font-size:12.5px}
+  .file .ok{font-size:10px;font-weight:700;color:var(--ok-text);background:var(--ok-bg);
+    padding:1px 6px;border-radius:999px}
+  .acts{display:flex;gap:8px;margin:16px 0 4px}
+  .btn{padding:7px 14px;border:1px solid var(--line);border-radius:999px;font-size:12.5px;font-weight:600;
+    background:var(--surface)}
+  .btn.primary{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+
+  /* ── chat dock ───────────────────────────── */
+  .fab{position:fixed;right:24px;bottom:24px;width:54px;height:54px;border-radius:50%;background:var(--accent);
+    color:var(--accent-fg);font-size:22px;display:grid;place-items:center;
+    box-shadow:0 6px 18px rgba(0,0,0,.22);z-index:30}
+  .chat{position:fixed;right:24px;bottom:24px;width:376px;max-height:74vh;background:var(--surface);
+    border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);
+    display:none;flex-direction:column;overflow:hidden;z-index:31}
+  .chat.open{display:flex}
+  .chat header{height:50px;background:var(--accent);color:var(--accent-fg);border:0;position:static}
+  .chat header b{font-size:14px}
+  .chat .log{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px;
+    background:var(--bg)}
+  .msg{max-width:84%;padding:10px 13px;border-radius:14px;font-size:13px;line-height:1.65}
+  .msg.me{align-self:flex-end;background:var(--accent);color:var(--accent-fg);border-bottom-right-radius:4px}
+  .msg.ai{align-self:flex-start;background:var(--surface);border:1px solid var(--line);
+    border-bottom-left-radius:4px}
+  .cite{margin-top:8px;padding-top:7px;border-top:1px dashed var(--line);font-size:11px;color:var(--unread)}
+  .chat .inp{display:flex;gap:8px;padding:10px;border-top:1px solid var(--line)}
+  .chat .inp input{flex:1;height:38px;padding:0 14px;border:1px solid var(--line);border-radius:999px;
+    outline:none;font:inherit;background:var(--surface);color:var(--text)}
+  .chat .inp button{width:38px;height:38px;border-radius:50%;background:var(--accent);color:var(--accent-fg)}
+  .chips{display:flex;gap:6px;flex-wrap:wrap;padding:0 10px 10px}
+  .chip{padding:5px 10px;border:1px solid var(--line);border-radius:999px;font-size:11.5px;color:var(--muted)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand"><span class="dot">KW</span> Notice</div>
+  <div class="search">🔍 <input placeholder="공지 검색: 장학, 수강신청, 첨부파일 내용까지"></div>
+  <button class="themebtn" id="themebtn" title="테마 전환">🌙</button>
+  <div class="avatar">현진</div>
+</header>
+
+<div class="shell">
+  <!-- 사이드바 -->
+  <nav>
+    <button class="navbtn on"><span class="ico">📥</span> 전체 공지 <span class="cnt">12</span></button>
+    <button class="navbtn"><span class="ico">✳️</span> 새 공지만 <span class="cnt">5</span></button>
+    <button class="navbtn"><span class="ico">⭐</span> 별표</button>
+    <button class="navbtn"><span class="ico">📌</span> 고정 공지</button>
+    <button class="navbtn"><span class="ico">🗂</span> 읽음 보관함</button>
+    <div class="navlabel">출처</div>
+    <button class="navbtn"><span class="ico">🏫</span> 대학 공지 <span class="cnt">8</span></button>
+    <button class="navbtn"><span class="ico">💻</span> 소프트웨어학부 <span class="cnt">4</span></button>
+    <div class="navlabel">카테고리</div>
+    <button class="navbtn"><span class="ico">●</span> 학생</button>
+    <button class="navbtn"><span class="ico">●</span> 등록/장학</button>
+    <button class="navbtn"><span class="ico">●</span> 국제교류</button>
+    <button class="navbtn"><span class="ico">●</span> 일반</button>
+  </nav>
+
+  <!-- 목록 -->
+  <section class="list">
+    <div class="digest">
+      <h3>✨ 9월 23일 오늘의 요약</h3>
+      <ul>
+        <li>10월 장소사용 신청이 열렸습니다. 신청서 양식 첨부 있음</li>
+        <li>참빛핵심역량 진단은 <b>9/30 마감</b>, 미참여 시 장학 심사에 반영</li>
+        <li>소프트웨어학부 기초학력 클리닉 튜터 모집, 시급 지급 건</li>
+      </ul>
+      <div class="more">새 공지 5건 모두 보기 →</div>
+    </div>
+
+    <div class="secthead">📌 고정 공지</div>
+
+    <div class="row">
+      <span class="pin on">📌</span><span class="star">☆</span>
+      <div>
+        <div class="meta"><span class="tag">학생</span> 학생상담센터</div>
+        <div class="title">2026 폭력예방교육 수강 안내</div>
+        <div class="sub"><span>05-04</span><span>📎 2</span><span>조회 8,509</span></div>
+      </div>
+    </div>
+
+    <div class="row">
+      <span class="pin on">📌</span><span class="star on">★</span>
+      <div>
+        <div class="meta"><span class="tag">등록/장학</span> 학생복지팀</div>
+        <div class="title">인송문화재단 인송 장학생 선발 안내</div>
+        <div class="sub"><span>09-07</span><span>📎 3</span><span>조회 1,471</span></div>
+      </div>
+    </div>
+
+    <div class="secthead">🆕 새 공지 · 9월 23일</div>
+
+    <div class="row unread sel">
+      <span class="pin">📌</span><span class="star">☆</span>
+      <div>
+        <div class="meta"><span class="tag">학생</span> 학생복지팀 <span>· 오늘 09:14</span></div>
+        <div class="title">장소사용 신청 안내(2026년 10월)</div>
+        <div class="sub"><span>📎 2</span><span>조회 54</span></div>
+      </div>
+    </div>
+
+    <div class="row unread">
+      <span class="pin">📌</span><span class="star">☆</span>
+      <div>
+        <div class="meta"><span class="tag">국제학생</span> 글로벌전략팀 <span>· 오늘 08:40</span></div>
+        <div class="title">2026년 하반기 현대건설 외국인 유학생 채용 공고</div>
+        <div class="sub"><span>조회 81</span></div>
+      </div>
+    </div>
+
+    <div class="row unread">
+      <span class="pin">📌</span><span class="star on">★</span>
+      <div>
+        <div class="meta"><span class="tag cs">소프트웨어학부</span> 학부 사무실 <span>· 09-14</span></div>
+        <div class="title">2026학년도 2학기 기초학력증진프로그램 기초학력 클리닉 튜터 모집 안내</div>
+        <div class="sub"><span>📎 1</span><span>조회 121</span></div>
+      </div>
+    </div>
+
+    <div class="secthead">📅 이전</div>
+
+    <div class="row unread">
+      <span class="pin">📌</span><span class="star">☆</span>
+      <div>
+        <div class="meta"><span class="tag">일반</span> 교육혁신원 <span>· 09-22</span></div>
+        <div class="title">참빛핵심역량 진단 참여 안내</div>
+        <div class="sub"><span>조회 284</span></div>
+      </div>
+    </div>
+
+    <div class="row">
+      <span class="pin">📌</span><span class="star">☆</span>
+      <div>
+        <div class="meta"><span class="tag">일반</span> 산학협력단 <span>· 09-22</span></div>
+        <div class="title">2026년 실험실 창업경진대회 참여자 모집</div>
+        <div class="sub"><span>📎 1</span><span>조회 148</span></div>
+      </div>
+    </div>
+
+    <div class="row">
+      <span class="pin">📌</span><span class="star">☆</span>
+      <div>
+        <div class="meta"><span class="tag cs">소프트웨어학부</span> 학부 사무실 <span>· 09-07</span></div>
+        <div class="title">2026 서울AI로봇쇼 「피지컬 AI 포럼」 참관객 모집 안내</div>
+        <div class="sub"><span>조회 102</span></div>
+      </div>
+    </div>
+
+    <div class="row">
+      <span class="pin">📌</span><span class="star">☆</span>
+      <div>
+        <div class="meta"><span class="tag">국제교류</span> 글로벌전략팀 <span>· 09-21</span></div>
+        <div class="title">2026학년도 KW Global Challenger 운영 안내</div>
+        <div class="sub"><span>📎 4</span><span>조회 794</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 본문 -->
+  <article class="pane">
+    <h1>장소사용 신청 안내(2026년 10월)</h1>
+    <div class="paneMeta">
+      <span class="tag">학생</span>
+      <span>학생복지팀</span><span>·</span>
+      <span>2026-09-23 09:14</span><span>·</span>
+      <span>조회 54</span><span>·</span>
+      <span>📎 첨부 2</span>
+      <span style="margin-left:auto">⭐ 📌 🔗 원문 보기</span>
+    </div>
+
+    <div class="aibox">
+      <h4>✨ AI 요약 (첨부파일 포함)</h4>
+      <ul>
+        <li>10월 교내 장소사용 신청 기간: <b>9/24(수) ~ 9/30(화) 17:00</b></li>
+        <li>대상: 등록 학생단체, 동아리, 학과 학생회</li>
+        <li>제출: 신청서(HWP) 작성 후 학생복지팀 이메일 접수, 대관료는 별표 요율표 참조</li>
+        <li>대운동장, 동해문화예술관은 별도 협의 필요</li>
+      </ul>
+    </div>
+
+    <div class="body">
+      <p>2026년 10월 교내 장소사용 신청을 아래와 같이 안내합니다.</p>
+      <p>1. 신청기간: 2026. 9. 24.(수) ~ 9. 30.(화) 17:00까지<br>
+         2. 신청대상: 교내 등록 학생자치기구 및 동아리<br>
+         3. 신청방법: 붙임 신청서 작성 후 담당자 이메일 제출</p>
+      <p>기타 문의사항은 학생복지팀(02-940-0000)으로 연락 바랍니다.</p>
+    </div>
+
+    <div class="files">
+      <div class="file">📄 [붙임1] 장소사용 신청서.hwp <span class="ok">본문 추출됨</span></div>
+      <div class="file">📄 [붙임2] 대관료 요율표.pdf <span class="ok">본문 추출됨</span></div>
+    </div>
+
+    <div class="acts">
+      <button class="btn primary">이 공지로 질문하기</button>
+      <button class="btn">읽음 표시</button>
+      <button class="btn">알림 끄기</button>
+    </div>
+  </article>
+</div>
+
+<!-- 채팅 -->
+<button class="fab" onclick="document.querySelector('.chat').classList.add('open')">✨</button>
+<div class="chat">
+  <header style="display:flex;align-items:center;gap:10px;padding:0 14px">
+    <b>KW 공지 AI</b>
+    <span style="margin-left:auto;cursor:pointer"
+          onclick="document.querySelector('.chat').classList.remove('open')">✕</span>
+  </header>
+  <div class="log">
+    <div class="msg ai">무엇을 도와드릴까요? 첨부파일 내용까지 읽고 답합니다.</div>
+    <div class="msg me">10월에 대관 신청하려면 언제까지 내야 해?</div>
+    <div class="msg ai">
+      9월 30일 화요일 17시까지 학생복지팀에 신청서를 제출하면 됩니다. 신청서는
+      HWP 양식이고, 대관료는 붙임2 요율표 기준으로 산정됩니다.
+      <div class="cite">📎 장소사용 신청 안내(2026년 10월) · [붙임1] 신청서.hwp</div>
+    </div>
+  </div>
+  <div class="chips">
+    <span class="chip">이번 주 장학 공지</span>
+    <span class="chip">마감 임박한 것만</span>
+    <span class="chip">오늘 요약</span>
+  </div>
+  <div class="inp"><input placeholder="공지에 대해 물어보세요"><button>↑</button></div>
+</div>
+
+<script>
+  document.querySelectorAll('.row').forEach(r=>r.addEventListener('click',e=>{
+    if(e.target.classList.contains('star')){
+      e.target.classList.toggle('on');
+      e.target.textContent = e.target.classList.contains('on')?'★':'☆';
+      return;
+    }
+    document.querySelectorAll('.row').forEach(x=>x.classList.remove('sel'));
+    r.classList.add('sel'); r.classList.remove('unread');
+  }));
+</script>
+<script>
+  const root = document.documentElement, tbtn = document.getElementById('themebtn');
+  const saved = localStorage.getItem('kw-theme');
+  const initial = saved || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  apply(initial);
+  tbtn.addEventListener('click', () =>
+    apply(root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'));
+  function apply(t){
+    root.setAttribute('data-theme', t);
+    tbtn.textContent = t === 'dark' ? '☀️' : '🌙';
+    try { localStorage.setItem('kw-theme', t); } catch(e) {}
+  }
+</script>
+</body>
+</html>
