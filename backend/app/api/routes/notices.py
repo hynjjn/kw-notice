@@ -38,19 +38,30 @@ SOURCE_PRIORITY = case({"kw_main": 0, "cs_dept": 1}, value=Source.key, else_=99)
 # 두 출처 모두 external_id 가 숫자다. 숫자가 아닌 출처가 생기면 여기서 터진다.
 EXTERNAL_SEQ = cast(Notice.external_id, BigInteger).desc()
 
-SORTS = {
-    # 기본값. "우리가 처음 본 순서"다.
+# 공지를 처음 본 "날짜". 초 단위로 쓰면 안 된다.
+#
+# 파이프라인은 항상 대학 공지를 먼저, 학부 공지를 나중에 긁는다(PARSERS 순서).
+# first_seen_at 을 초까지 비교하면 학부 공지가 매일 대학 공지 위로 올라간다.
+# 정렬 기준에 "크롤러를 어떤 순서로 돌렸는가"가 새어 들어오는 것이다.
+# 날짜로 자르면 같은 날 수집분이 동률이 되어 그 차이가 사라진다.
+#
+# 서버의 timezone 설정에 기대지 않고 한국 시각으로 못박는다. cron 이 07:00 KST 에
+# 도는데 서버가 UTC 면 전날 22:00 이 되어 날짜가 하루 어긋난다.
+SEEN_DAY = func.date(func.timezone("Asia/Seoul", Notice.first_seen_at)).desc()
+
+# 정렬 키는 여러 개일 수 있다. 뒤에 SOURCE_PRIORITY 와 EXTERNAL_SEQ 가 항상 붙는다.
+SORTS: dict[str, tuple] = {
+    # 기본값. "오늘 새로 눈에 띈 것"이 위로 온다.
     #
     # 작성일순으로는 잡히지 않는 게 있다. 7월에 올라온 공지가 기간 연장으로
-    # 어제 수정되면 학교 목록 1페이지로 떠오르는데, 작성일로 줄 세우면
-    # 102건 중 91번째로 묻힌다. 학생에게는 어제 뜬 새 소식인데도.
-    # first_seen_at 은 그런 글을 맨 위로 올린다.
-    "seen": Notice.first_seen_at.desc(),
-    # 학교 사이트는 수정일로 정렬해서 8월 공지가 어제 공지보다 위에 온다.
-    "posted": Notice.posted_at.desc(),
-    "modified": Notice.modified_at_source.desc().nulls_last(),
-    "views": Notice.view_count.desc(),
-    "deadline": Notice.deadline_at.asc().nulls_last(),
+    # 수정되면 학교 목록 1페이지로 떠오르는데, 작성일로 줄 세우면 102건 중
+    # 91번째로 묻힌다. 학생에게는 어제 뜬 새 소식인데도 그렇다.
+    "seen": (SEEN_DAY, Notice.posted_at.desc()),
+    "posted": (Notice.posted_at.desc(),),
+    # 학교 사이트가 쓰는 기준. 8월 공지가 어제 공지보다 위에 온다.
+    "modified": (Notice.modified_at_source.desc().nulls_last(),),
+    "views": (Notice.view_count.desc(),),
+    "deadline": (Notice.deadline_at.asc().nulls_last(),),
 }
 
 
@@ -194,7 +205,7 @@ def list_notices(
     )
 
     rows = session.execute(
-        stmt.order_by(SORTS[sort], SOURCE_PRIORITY, EXTERNAL_SEQ)
+        stmt.order_by(*SORTS[sort], SOURCE_PRIORITY, EXTERNAL_SEQ)
         .limit(limit)
         .offset(offset)
     ).all()
