@@ -1,0 +1,46 @@
+import type { Digest, NoticeDetail, NoticeList, NoticeQuery, Stats } from "./types";
+
+// vite 의 proxy(개발), CloudFront 의 behavior(배포)가 이 경로를 백엔드로 넘긴다.
+const BASE = "/api";
+
+class ApiError extends Error {
+  status: number;
+
+  constructor(status: number, message: string) {
+    super(message);
+    this.status = status;
+  }
+}
+
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(`${BASE}${path}`, init);
+  if (!res.ok) {
+    const detail = await res.text().catch(() => "");
+    throw new ApiError(res.status, detail || res.statusText);
+  }
+  return res.json() as Promise<T>;
+}
+
+function toQuery(params: NoticeQuery): string {
+  const sp = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    // false 는 의미 있는 값이다(pinned=false = 고정 제외). undefined 만 걸러낸다.
+    if (value !== undefined && value !== "") sp.set(key, String(value));
+  }
+  const qs = sp.toString();
+  return qs ? `?${qs}` : "";
+}
+
+export const api = {
+  notices: (params: NoticeQuery) =>
+    request<NoticeList>(`/notices${toQuery(params)}`),
+  notice: (id: number) => request<NoticeDetail>(`/notices/${id}`),
+  stats: () => request<Stats>("/stats"),
+  digest: (date: string) => request<Digest>(`/digests/${date}`),
+  setRead: (id: number, value: boolean) =>
+    request<void>(`/notices/${id}/read?value=${value}`, { method: "PUT" }),
+  setStar: (id: number, value: boolean) =>
+    request<void>(`/notices/${id}/star?value=${value}`, { method: "PUT" }),
+};
+
+export { ApiError };

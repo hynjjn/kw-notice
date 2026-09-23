@@ -1,0 +1,255 @@
+from __future__ import annotations
+
+import datetime as dt
+from typing import Literal
+
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import Select, exists, func, or_, select
+from sqlalchemy.orm import Session
+
+from app.api.deps import get_current_user, get_session
+from app.api.schemas import (
+    AttachmentOut,
+    NoticeDetail,
+    NoticeListItem,
+    NoticeListResponse,
+    StateOut,
+)
+from app.models import Attachment, CrawlState, ExtractState, Notice, Source, User, UserNoticeState
+
+router = APIRouter(prefix="/notices", tags=["notices"])
+
+DEADLINE_SOON_DAYS = 7
+
+SORTS = {
+    # 기본값이 작성일인 게 핵심이다. 학교 사이트는 수정일로 정렬해서
+    # 8월 공지가 어제 공지보다 위에 온다. 그게 안 보이던 원인이다.
+    "posted": Notice.posted_at.desc(),
+    "modified": Notice.modified_at_source.desc().nulls_last(),
+    "views": Notice.view_count.desc(),
+    "deadline": Notice.deadline_at.asc().nulls_last(),
+}
+
+
+def _attachment_count():
+    return (
+        select(func.count(Attachment.id))
+        .where(Attachment.notice_id == Notice.id)
+        .correlate(Notice)
+        .scalar_subquery()
+    )
+
+
+def _base_select(user: User) -> Select:
+    return (
+        select(
+            Notice,
+            Source.key,
+            Source.name,
+            func.coalesce(UserNoticeState.is_read, False),
+            func.coalesce(UserNoticeState.is_starred, False),
+            _attachment_count(),
+        )
+        .join(Source, Source.id == Notice.source_id)
+        .outerjoin(
+            UserNoticeState,
+            (UserNoticeState.notice_id == Notice.id)
+            & (UserNoticeState.user_id == user.id),
+        )
+        .where(Notice.crawl_state == CrawlState.parsed)
+    )
+
+
+def _apply_filters(
+    stmt: Select,
+    *,
+    source: str | None,
+    category: str | None,
+    pinned: bool | None,
+    unread: bool | None,
+    starred: bool | None,
+    deadline_soon: bool,
+    q: str | None,
+) -> Select:
+    if source:
+        stmt = stmt.where(Source.key == source)
+    if category:
+        stmt = stmt.where(Notice.category == category)
+    if pinned is not None:
+        stmt = stmt.where(Notice.is_pinned.is_(pinned))
+    if unread is not None:
+        read = func.coalesce(UserNoticeState.is_read, False)
+        stmt = stmt.where(read.is_(not unread))
+    if starred:
+        stmt = stmt.where(func.coalesce(UserNoticeState.is_starred, False).is_(True))
+    if deadline_soon:
+        today = dt.date.today()
+        stmt = stmt.where(
+            Notice.deadline_at.is_not(None),
+            Notice.deadline_at >= today,
+            Notice.deadline_at <= today + dt.timedelta(days=DEADLINE_SOON_DAYS),
+        )
+    if q:
+        pattern = f"%{q}%"
+        # tsvector 는 'simple' 구성이라 한국어 부분 일치를 놓친다.
+        # ILIKE 를 함께 걸어 보완하고, 첨부 본문까지 훑는다.
+        # 이게 학교 검색과 갈리는 지점이다.
+        in_attachment = (
+            select(Attachment.id)
+            .where(
+                Attachment.notice_id == Notice.id,
+                Attachment.extracted_text.ilike(pattern),
+            )
+            .correlate(Notice)
+        )
+        stmt = stmt.where(
+            or_(
+                Notice.tsv.op("@@")(func.plainto_tsquery("simple", q)),
+                Notice.title.ilike(pattern),
+                Notice.body_text.ilike(pattern),
+                exists(in_attachment),
+            )
+        )
+    return stmt
+
+
+def _to_item(row) -> NoticeListItem:
+    notice, source_key, source_name, is_read, is_starred, att_count = row
+    return NoticeListItem(
+        id=notice.id,
+        source_key=source_key,
+        source_name=source_name,
+        external_id=notice.external_id,
+        url=notice.url,
+        title=notice.title,
+        category=notice.category,
+        author_dept=notice.author_dept,
+        posted_at=notice.posted_at,
+        modified_at_source=notice.modified_at_source,
+        view_count=notice.view_count,
+        is_pinned=notice.is_pinned,
+        pinned_rank=notice.pinned_rank,
+        has_attachment=notice.has_attachment,
+        attachment_count=att_count,
+        deadline_at=notice.deadline_at,
+        ai_summary=notice.ai_summary,
+        content_revision=notice.content_revision,
+        content_changed_at=notice.content_changed_at,
+        is_read=is_read,
+        is_starred=is_starred,
+    )
+
+
+@router.get("", response_model=NoticeListResponse)
+def list_notices(
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+    source: str | None = None,
+    category: str | None = None,
+    pinned: bool | None = Query(None, description="true=고정만, false=고정 제외"),
+    unread: bool | None = None,
+    starred: bool | None = None,
+    deadline_soon: bool = False,
+    q: str | None = Query(None, description="제목, 본문, 첨부 본문 검색"),
+    sort: Literal["posted", "modified", "views", "deadline"] = "posted",
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+) -> NoticeListResponse:
+    filters = dict(
+        source=source,
+        category=category,
+        pinned=pinned,
+        unread=unread,
+        starred=starred,
+        deadline_soon=deadline_soon,
+        q=q,
+    )
+
+    stmt = _apply_filters(_base_select(user), **filters)
+    total = session.scalar(
+        select(func.count()).select_from(stmt.order_by(None).subquery())
+    )
+
+    rows = session.execute(
+        stmt.order_by(SORTS[sort], Notice.id.desc()).limit(limit).offset(offset)
+    ).all()
+
+    return NoticeListResponse(
+        items=[_to_item(r) for r in rows], total=total or 0, limit=limit, offset=offset
+    )
+
+
+@router.get("/{notice_id}", response_model=NoticeDetail)
+def get_notice(
+    notice_id: int,
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+) -> NoticeDetail:
+    row = session.execute(_base_select(user).where(Notice.id == notice_id)).first()
+    if row is None:
+        raise HTTPException(status_code=404, detail="공지를 찾을 수 없다")
+
+    notice = row[0]
+    item = _to_item(row)
+    return NoticeDetail(
+        **item.model_dump(),
+        body_text=notice.body_text,
+        inline_image_urls=notice.inline_image_urls,
+        attachments=[
+            AttachmentOut(
+                id=a.id,
+                filename=a.filename,
+                url=a.url,
+                file_ext=a.file_ext,
+                byte_size=a.byte_size,
+                extract_state=a.extract_state.value,
+                has_text=a.extract_state == ExtractState.ok,
+            )
+            for a in notice.attachments
+        ],
+    )
+
+
+def _set_state(
+    session: Session, user: User, notice_id: int, **changes
+) -> StateOut:
+    if not session.get(Notice, notice_id):
+        raise HTTPException(status_code=404, detail="공지를 찾을 수 없다")
+
+    state = session.get(UserNoticeState, (user.id, notice_id))
+    if state is None:
+        state = UserNoticeState(user_id=user.id, notice_id=notice_id)
+        session.add(state)
+
+    now = dt.datetime.now(dt.UTC)
+    if "is_read" in changes:
+        state.is_read = changes["is_read"]
+        state.read_at = now if changes["is_read"] else None
+    if "is_starred" in changes:
+        state.is_starred = changes["is_starred"]
+        state.starred_at = now if changes["is_starred"] else None
+
+    session.commit()
+    return StateOut(
+        notice_id=notice_id, is_read=state.is_read, is_starred=state.is_starred
+    )
+
+
+@router.put("/{notice_id}/read", response_model=StateOut)
+def mark_read(
+    notice_id: int,
+    value: bool = Query(True),
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+) -> StateOut:
+    return _set_state(session, user, notice_id, is_read=value)
+
+
+@router.put("/{notice_id}/star", response_model=StateOut)
+def mark_star(
+    notice_id: int,
+    value: bool = Query(True),
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+) -> StateOut:
+    return _set_state(session, user, notice_id, is_starred=value)

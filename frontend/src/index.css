@@ -1,0 +1,97 @@
+@import "tailwindcss";
+
+/* mockup 에서 쓰던 토큰을 그대로 옮겼다.
+   런타임에 테마를 바꿔야 하므로 Tailwind 의 색 대신 CSS 변수를 쓴다. */
+:root {
+  --bg: #f6f8fc;
+  --surface: #ffffff;
+  --line: #e3e6ea;
+  --line-soft: #f1f3f4;
+  --text: #1f1f1f;
+  --body-text: #3c4043;
+  --muted: #5f6368;
+  --faint: #9aa0a6;
+  --accent: #8b1a1a;
+  --accent-fg: #ffffff;
+  --accent-soft: #fdecec;
+  --star: #f4b400;
+  --star-off: #c6cad0;
+  --unread: #0b57d0;
+  --hover: #f7f9fd;
+  --nav-hover: #eaeef6;
+  --sel: #e8f0fe;
+  --search-bg: #eaeef6;
+  --chip-bg: #eef1f5;
+  --chip-text: #4a5157;
+  --digest-bg: linear-gradient(135deg, #fdecec, #eef2ff);
+  --digest-line: #f0d6d6;
+  --ai-bg: #f1f5ff;
+  --ai-line: #d9e2ff;
+  --ok-bg: #e6f4ea;
+  --ok-text: #137333;
+}
+
+:root[data-theme="dark"] {
+  --bg: #16181c;
+  --surface: #1e2025;
+  --line: #33363c;
+  --line-soft: #2a2d33;
+  --text: #e8eaed;
+  --body-text: #c3c7cc;
+  --muted: #9aa0a6;
+  --faint: #7c8085;
+  --accent: #ff9a9a;
+  --accent-fg: #2a1212;
+  --accent-soft: #3a2224;
+  --star: #f4c430;
+  --star-off: #55595f;
+  --unread: #8ab4f8;
+  --hover: #25282e;
+  --nav-hover: #272a30;
+  --sel: #2b3648;
+  --search-bg: #2a2d33;
+  --chip-bg: #2e3138;
+  --chip-text: #c3c7cc;
+  --digest-bg: linear-gradient(135deg, #3a2224, #232a44);
+  --digest-line: #46323a;
+  --ai-bg: #1e2740;
+  --ai-line: #2f3d5e;
+  --ok-bg: #1c3325;
+  --ok-text: #81c995;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo",
+    Pretendard, "Segoe UI", sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+@layer components {
+  .nav-btn {
+    @apply flex w-full items-center gap-3 rounded-full px-3.5 py-2 text-left;
+    color: var(--muted);
+  }
+  .nav-btn:hover {
+    background: var(--nav-hover);
+  }
+  .nav-btn[data-active="true"] {
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-weight: 700;
+  }
+  .chip {
+    @apply rounded-full px-1.5 py-px text-[10px] font-bold;
+    background: var(--chip-bg);
+    color: var(--chip-text);
+  }
+}

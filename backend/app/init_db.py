@@ -7,7 +7,8 @@ MVP 동안은 Alembic 없이 create_all 로 간다. 스키마가 굳으면 그�
 from sqlalchemy import select
 
 from app.db import SessionLocal, engine, ensure_extensions
-from app.models import Base, Source
+from app.config import settings
+from app.models import Base, Source, User
 
 SEED_SOURCES = [
     Source(
@@ -35,7 +36,17 @@ def main() -> None:
         added = [s for s in SEED_SOURCES if s.key not in existing]
         session.add_all(added)
         session.commit()
+        # 단일 사용자 MVP. 읽음, 별표를 붙일 주인이 한 명은 있어야 한다.
+        user = session.scalar(select(User).where(User.email == settings.default_user_email))
+        if user is None:
+            session.add(User(email=settings.default_user_email, display_name="me"))
+            session.commit()
+            seeded_user = settings.default_user_email
+        else:
+            seeded_user = "이미 있음"
+
         print(f"tables ready, sources seeded: {[s.key for s in added] or 'none'}")
+        print(f"default user: {seeded_user}")
 
 
 if __name__ == "__main__":
