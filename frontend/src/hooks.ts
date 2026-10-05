@@ -59,3 +59,20 @@ export function useSummarize() {
     },
   });
 }
+
+/** 새 공지 가져오기 상태. 도는 동안만 2초마다 다시 묻는다. */
+export function useRefreshStatus() {
+  return useQuery({
+    queryKey: ["refresh"],
+    queryFn: api.refreshStatus,
+    refetchInterval: (q) => (q.state.data?.state === "running" ? 2_000 : false),
+  });
+}
+
+export function useStartRefresh() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: api.startRefresh,
+    onSuccess: (status) => qc.setQueryData(["refresh"], status),
+  });
+}

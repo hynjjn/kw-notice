@@ -217,3 +217,19 @@ body {
     animation: none;
   }
 }
+
+/* 새 공지 가져오기 버튼의 도는 화살표 */
+.spin {
+  display: inline-block;
+  animation: spin 1s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .spin {
+    animation: none;
+  }
+}

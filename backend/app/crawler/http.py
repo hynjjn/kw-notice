@@ -13,7 +13,7 @@ UA = (
     "(KHTML, like Gecko) Chrome/131.0 Safari/537.36"
 )
 
-# Retry-After 가 이보다 길면 이번 실행은 포기한다. 내일 cron 이 다시 온다.
+# Retry-After 가 이보다 길면 이번 실행은 포기한다. 나중에 다시 가져오면 된다.
 MAX_RETRY_AFTER = 30.0
 
 

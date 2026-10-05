@@ -5,6 +5,7 @@ import { ChatFab } from "./chat/ChatFab";
 import { DigestCard } from "./components/DigestCard";
 import { NoticeList } from "./components/NoticeList";
 import { ReadingPane } from "./components/ReadingPane";
+import { RefreshButton } from "./components/RefreshButton";
 import { Sidebar, type Filter } from "./components/Sidebar";
 import { ThemeToggle } from "./components/ThemeToggle";
 import { useDigest, useNotice, useNotices, useSetRead, useSetStar, useStats } from "./hooks";
@@ -82,7 +83,10 @@ export default function App() {
             </button>
           )}
         </div>
-        <ThemeToggle />
+        <div className="ml-auto flex items-center gap-3">
+          <RefreshButton />
+          <ThemeToggle />
+        </div>
       </header>
 
       <div className="grid min-h-0 flex-1 grid-cols-[212px_minmax(340px,440px)_1fr]">

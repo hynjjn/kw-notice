@@ -50,8 +50,8 @@ EXTERNAL_SEQ = cast(Notice.external_id, BigInteger).desc()
 # 정렬 기준에 "크롤러를 어떤 순서로 돌렸는가"가 새어 들어오는 것이다.
 # 날짜로 자르면 같은 날 수집분이 동률이 되어 그 차이가 사라진다.
 #
-# 서버의 timezone 설정에 기대지 않고 한국 시각으로 못박는다. cron 이 07:00 KST 에
-# 도는데 서버가 UTC 면 전날 22:00 이 되어 날짜가 하루 어긋난다.
+# 서버의 timezone 설정에 기대지 않고 한국 시각으로 못박는다. 아침 07:00 KST 에
+# 수집해도 서버가 UTC 면 전날 22:00 이 되어 날짜가 하루 어긋난다.
 SEEN_DAY = func.date(func.timezone("Asia/Seoul", Notice.first_seen_at)).desc()
 
 # 정렬 키는 여러 개일 수 있다. 뒤에 SOURCE_PRIORITY 와 EXTERNAL_SEQ 가 항상 붙는다.

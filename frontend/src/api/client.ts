@@ -1,4 +1,12 @@
-import type { ChatReply, Digest, NoticeDetail, NoticeList, NoticeQuery, Stats } from "./types";
+import type {
+  ChatReply,
+  Digest,
+  NoticeDetail,
+  NoticeList,
+  NoticeQuery,
+  RefreshStatus,
+  Stats,
+} from "./types";
 
 // vite 의 proxy(개발), CloudFront 의 behavior(배포)가 이 경로를 백엔드로 넘긴다.
 const BASE = "/api";
@@ -49,6 +57,8 @@ export const api = {
   summarize: (id: number) =>
     request<NoticeDetail>(`/notices/${id}/summary`, { method: "POST" }),
   stats: () => request<Stats>("/stats"),
+  refreshStatus: () => request<RefreshStatus>("/refresh"),
+  startRefresh: () => request<RefreshStatus>("/refresh", { method: "POST" }),
   chat: (messages: { role: "user" | "assistant"; text: string; notice_id?: number }[]) =>
     request<ChatReply>("/chat", {
       method: "POST",

@@ -95,3 +95,15 @@ export interface ChatReply {
   reply: string;
   notices: ChatNoticeRef[];
 }
+
+export interface RefreshStatus {
+  state: "idle" | "running" | "done" | "failed";
+  stage: string | null;
+  started_at: string | null;
+  finished_at: string | null;
+  new: number;
+  updated: number;
+  failed_sources: string[];
+  error: string | null;
+  last_crawled_at: string | null;
+}

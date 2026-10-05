@@ -1,6 +1,6 @@
 # KW Notice
 
-광운대학교 공지사항을 매일 모으고, 누르면 요약해 주고, 첨부파일 내용까지 검색하게 해 주는 서비스.
+광운대학교 공지사항을 버튼 한 번에 모으고, 누르면 요약해 주고, 첨부파일 내용까지 검색하게 해 주는 서비스.
 
 ## 왜 만드는가
 
@@ -37,16 +37,22 @@ cd frontend && npm install && npm run dev   # http://localhost:5173
 
 요약까지 쓰려면 `backend/.env` 에 `GEMINI_API_KEY` 가 필요하다.
 
-## 매일 돌리기
+## 새 공지 가져오기
+
+헤더의 **새 공지 가져오기** 버튼을 누르면 서버가 백그라운드에서 수집 → 첨부 추출을
+돈다(`POST /api/refresh`, 진행 상황은 `GET /api/refresh`). 학교 서버에 요청 간격을
+두고 도느라 몇 분 걸리고, 끝나면 목록이 새로 고쳐진다. 한 번에 하나만 돈다.
+
+손으로 돌릴 때는 다음 명령을 쓴다.
 
 ```bash
 cd backend
-python -m app.scheduler            # 매일 07:00 (Asia/Seoul)
-python -m app.scheduler --now      # 한 번만 즉시
+python -m app.pipeline
 ```
 
-수집 → 첨부 추출을 순서대로 돈다. 각 단계가 앞 단계의 상태를 보고 자기 몫만
-집어 가므로, 중간에 실패해도 다음 실행이 이어서 한다.
+각 단계가 앞 단계의 상태를 보고 자기 몫만 집어 가므로, 중간에 실패해도 다음
+실행이 이어서 한다. 작업 상태는 API 프로세스 메모리에 있으므로 uvicorn worker 는
+하나로 띄운다.
 
 요약은 자동으로 돌지 않는다. 공지를 열고 "AI 요약 만들기"를 누르면 그 한 건만
 Gemini 로 요약한다(`POST /api/notices/{id}/summary`). 키가 없으면 버튼이 503 을
@@ -63,6 +69,7 @@ Gemini 로 요약한다(`POST /api/notices/{id}/summary`). 키가 없으면 버�
 | `POST /api/chat` | 공지 AI 채팅. 대화 전체를 보내면 답과 참고한 공지를 돌려준다 |
 | `GET /api/stats` | 사이드바 집계 |
 | `GET /api/sources` | 출처 목록 |
+| `POST /api/refresh` `GET /api/refresh` | 새 공지 가져오기 시작, 진행 상황 |
 | `GET /api/digests/{date}` | 하루치 브리핑 |
 
 문서는 http://localhost:8000/docs.
