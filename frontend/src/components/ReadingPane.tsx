@@ -89,6 +89,32 @@ export function ReadingPane({
       </h1>
       <Meta notice={notice} />
 
+      {/* 첨부에 진짜 내용이 있는 공지가 많다. 본문 끝까지 내리지 않아도 보이게 위에 둔다. */}
+      {notice.attachments.length > 0 && (
+        <div className="mt-3.5 flex flex-wrap gap-2.5">
+          {notice.attachments.map((a) => (
+            <a
+              key={a.id}
+              href={a.url}
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center gap-2 rounded-xl px-3 py-2 text-[12.5px]"
+              style={{ border: "1px solid var(--line)", background: "var(--surface)" }}
+            >
+              📄 {a.filename}
+              {a.has_text && (
+                <span
+                  className="rounded-full px-1.5 py-px text-[10px] font-bold"
+                  style={{ background: "var(--ok-bg)", color: "var(--ok-text)" }}
+                >
+                  본문 추출됨
+                </span>
+              )}
+            </a>
+          ))}
+        </div>
+      )}
+
       {notice.ai_summary ? (
         <div
           className="my-4 rounded-2xl px-4 py-3.5"
@@ -129,30 +155,6 @@ export function ReadingPane({
         </div>
       )}
 
-      {notice.attachments.length > 0 && (
-        <div className="mt-6 flex flex-wrap gap-2.5">
-          {notice.attachments.map((a) => (
-            <a
-              key={a.id}
-              href={a.url}
-              target="_blank"
-              rel="noreferrer"
-              className="flex items-center gap-2 rounded-xl px-3 py-2 text-[12.5px]"
-              style={{ border: "1px solid var(--line)", background: "var(--surface)" }}
-            >
-              📄 {a.filename}
-              {a.has_text && (
-                <span
-                  className="rounded-full px-1.5 py-px text-[10px] font-bold"
-                  style={{ background: "var(--ok-bg)", color: "var(--ok-text)" }}
-                >
-                  본문 추출됨
-                </span>
-              )}
-            </a>
-          ))}
-        </div>
-      )}
     </article>
   );
 }
