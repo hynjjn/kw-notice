@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { ChatFab } from "./chat/ChatFab";
 import { DigestCard } from "./components/DigestCard";
 import { NoticeList } from "./components/NoticeList";
 import { ReadingPane } from "./components/ReadingPane";
@@ -112,6 +113,8 @@ export default function App() {
 
         <ReadingPane notice={detail.data} loading={detail.isLoading} />
       </div>
+
+      <ChatFab />
     </div>
   );
 }
