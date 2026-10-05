@@ -46,16 +46,12 @@ export function Sidebar({ stats, filter, onChange }: Props) {
 
   return (
     <nav className="overflow-y-auto px-2 py-3">
-      {/* 고정 공지는 아래 전용 항목이 있다. 여기서 또 섞으면 59건이 목록을 덮는다. */}
-      {item(
-        "전체 공지",
-        "📥",
-        { pinned: false },
-        stats && stats.total - stats.pinned,
-      )}
+      {/* 고정 공지도 섞어 보여 준다. 학교는 새 공지 대부분을 고정으로 올린다.
+          오래된 고정 공지는 처음 본 날짜순 정렬에서 저절로 아래로 내려간다. */}
+      {item("전체 공지", "📥", {}, stats?.total)}
       {item("안 읽음", "✳️", { unread: true }, stats?.unread)}
       {item("별표", "⭐", { starred: true }, stats?.starred)}
-      {item("고정 공지", "📌", { pinned: true }, stats?.pinned)}
+      {item("학교 고정 공지", "📌", { pinned: true }, stats?.pinned)}
       {item("마감 임박", "⏰", { deadline_soon: true }, stats?.deadline_soon)}
 
       {heading("출처")}

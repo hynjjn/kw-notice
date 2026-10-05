@@ -15,7 +15,7 @@ const today = new Date().toISOString().slice(0, 10);
 
 export default function App() {
   // 첫 화면은 사이드바의 "전체 공지"와 같은 상태여야 한다.
-  const [filter, setFilter] = useState<Filter>({ pinned: false });
+  const [filter, setFilter] = useState<Filter>({});
   const [search, setSearch] = useState("");
   // 고른 공지는 주소(?notice=ID)에 둔다. AI 채팅의 공지 링크가 이 주소로 와서
   // 공지를 연다. 새로고침이나 링크 공유에도 같은 공지가 열린다.

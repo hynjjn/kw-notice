@@ -26,7 +26,7 @@ function Row({
   const unread = !notice.is_read;
   return (
     <div
-      className="grid cursor-pointer grid-cols-[20px_20px_1fr] items-start gap-2.5 px-4 py-2.5"
+      className="grid cursor-pointer grid-cols-[20px_1fr] items-start gap-2.5 px-4 py-2.5"
       style={{
         borderBottom: "1px solid var(--line-soft)",
         background: selected ? "var(--sel)" : undefined,
@@ -34,12 +34,6 @@ function Row({
       }}
       onClick={onSelect}
     >
-      <span
-        className="text-[13px] leading-snug"
-        style={{ color: notice.is_pinned ? "var(--accent)" : "var(--star-off)" }}
-      >
-        📌
-      </span>
       <button
         className="text-[15px] leading-snug"
         style={{ color: notice.is_starred ? "var(--star)" : "var(--star-off)" }}
@@ -56,6 +50,17 @@ function Row({
           className="mb-0.5 flex items-center gap-1.5 text-[11px]"
           style={{ color: unread ? "var(--body-text)" : "var(--muted)" }}
         >
+          {/* 학교 사이트 목록 맨 위에 고정된 공지. 이모지는 CSS 색이 먹지 않아서
+              예전처럼 모든 줄에 📌 를 두면 고정 여부를 구분할 수 없었다. */}
+          {notice.is_pinned && (
+            <span
+              className="chip"
+              style={{ background: "var(--accent-soft)", color: "var(--accent)" }}
+              title="학교 사이트 목록 맨 위에 고정된 공지"
+            >
+              고정
+            </span>
+          )}
           {notice.category && <span className="chip">{notice.category}</span>}
           {notice.source_key === "cs_dept" && <span className="chip">소프트웨어학부</span>}
           <span className="truncate">{notice.author_dept ?? notice.source_name}</span>
@@ -86,8 +91,8 @@ function Row({
 }
 
 export function NoticeList({ notices, selectedId, onSelect, onToggleStar }: Props) {
-  // 고정 여부로 섹션을 가르지 않는다. "전체 공지"가 고정을 빼고 보여 주고,
-  // 고정만 보려면 사이드바에 전용 항목이 따로 있다.
+  // 고정 여부로 섹션을 가르지 않는다. 고정 공지도 처음 본 날짜순으로 섞이고
+  // "고정" 칩으로만 구분한다. 고정만 보려면 사이드바에 전용 항목이 있다.
   return (
     <>
       {notices.map((n) => (
