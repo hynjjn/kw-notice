@@ -146,6 +146,7 @@ def _apply_filters(
                 Notice.tsv.op("@@")(func.plainto_tsquery("simple", q)),
                 Notice.title.ilike(pattern),
                 Notice.body_text.ilike(pattern),
+                Notice.image_text.ilike(pattern),
                 exists(in_attachment),
             )
         )

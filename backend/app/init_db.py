@@ -4,7 +4,7 @@ MVP 동안은 Alembic 없이 create_all 로 간다. 스키마가 굳으면 그�
 `alembic revision --autogenerate` 로 초기 migration 을 한 번 뜬다.
 """
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 
 from app.db import SessionLocal, engine, ensure_extensions
 from app.config import settings
@@ -27,9 +27,19 @@ SEED_SOURCES = [
 ]
 
 
+ADDED_COLUMNS = [
+    "ALTER TABLE notices ADD COLUMN IF NOT EXISTS image_text TEXT",
+    "ALTER TABLE notices ADD COLUMN IF NOT EXISTS image_text_at TIMESTAMPTZ",
+]
+
+
 def main() -> None:
     ensure_extensions()
     Base.metadata.create_all(engine)
+    # create_all 은 이미 있는 테이블에 컬럼을 더하지 않는다. Alembic 전까지는 여기서 더한다.
+    with engine.begin() as conn:
+        for ddl in ADDED_COLUMNS:
+            conn.execute(text(ddl))
 
     with SessionLocal() as session:
         existing = set(session.scalars(select(Source.key)))

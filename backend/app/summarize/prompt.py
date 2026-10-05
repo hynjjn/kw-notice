@@ -55,6 +55,11 @@ def build_content(notice: Notice, attachments: list[Attachment]) -> list[dict]:
     else:
         parts.append("[본문]\n(본문 글자가 없습니다. 아래 이미지가 공지 내용입니다.)")
 
+    # 포스터 속 글자를 이미 옮겨 적었으면 그림 대신 그 글자를 싣는다. 더 싸고 정확하다.
+    image_text = (notice.image_text or "").strip()
+    if image_text:
+        parts.append(f"[본문 이미지 속 글자]\n{_clip(image_text, MAX_BODY_CHARS)}")
+
     budget = MAX_TOTAL_CHARS - sum(len(p) for p in parts)
     for att in attachments:
         if budget <= 0:
@@ -69,7 +74,7 @@ def build_content(notice: Notice, attachments: list[Attachment]) -> list[dict]:
     content: list[dict] = []
 
     # 본문이 이미지뿐인 공지는 그림을 봐야 내용을 알 수 있다.
-    if not body and notice.inline_image_urls:
+    if not body and not image_text and notice.inline_image_urls:
         content += [
             {"type": "image", "source": {"type": "url", "url": url}}
             for url in notice.inline_image_urls[:MAX_IMAGES]

@@ -14,11 +14,13 @@ import logging
 import re
 from dataclasses import dataclass, field
 
-from google.genai import types
+from google.genai import errors, types
 from sqlalchemy import and_, exists, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.config import settings
+from app.crawler.http import make_client as make_http_client
+from app.extract import vision
 from app.models import Attachment, CrawlState, ExtractState, Notice
 from app.summarize import llm
 
@@ -39,6 +41,9 @@ SYSTEM = """당신은 광운대학교 학생의 공지사항 도우미입니다.
   답을 고르지 않습니다. 본문에 없고 첨부에만 있는 낱말도 검색에 걸립니다.
 - 검색어는 짧은 낱말 하나나 둘로 씁니다. 결과가 없으면 비슷한 말로 바꿔 다시 찾습니다(예: 장학금, 장학생).
 - 목록의 요약만으로 부족하면 get_notice 로 본문과 첨부를 읽습니다.
+- 학교 공지는 본문에 링크 몇 줄만 두고 일정, 자격, 유의사항을 포스터 그림에 넣는 일이 많습니다.
+  image_text 는 그 그림 속 글자를 옮겨 적은 것이고, 본문과 똑같이 공지 내용입니다.
+  본문이 짧더라도 image_text 를 먼저 확인하고, 거기 있는 내용을 "기재되어 있지 않다"고 답하지 않습니다.
 - 찾은 공지에 없는 내용은 지어내지 않습니다. 못 찾았으면 못 찾았다고 말합니다.
 - 공지를 언급할 때는 [공지 제목](notice:ID) 형식의 링크로 씁니다. ID 는 도구가 준 id 입니다.
 - 마감일, 금액, 자격, 신청 방법처럼 학생이 행동하는 데 필요한 정보를 앞에 둡니다.
@@ -107,7 +112,7 @@ class NoticeTools:
         deadline_within_days: int = 0,
         posted_within_days: int = 0,
     ) -> list[dict]:
-        """공지를 찾는다. 제목, 본문, 첨부파일 내용까지 검색한다.
+        """공지를 찾는다. 제목, 본문, 첨부파일 내용, 이미 읽어 둔 포스터 글자까지 검색한다.
 
         Args:
             query: 검색 낱말. 공백으로 나누면 모든 낱말이 들어간 공지만 찾는다. 띄어쓰기는 무시한다.
@@ -133,6 +138,7 @@ class NoticeTools:
                 or_(
                     _squash(Notice.title).ilike(pattern),
                     _squash(Notice.body_text).ilike(pattern),
+                    _squash(Notice.image_text).ilike(pattern),
                     in_attachment,
                 )
             )
@@ -175,12 +181,14 @@ class NoticeTools:
             notice_id: search_notices 가 돌려준 id.
 
         Returns:
-            제목, 작성일, 마감일, 원문 URL, 본문, 첨부파일별 추출 텍스트.
+            제목, 작성일, 마감일, 원문 URL, 본문, 본문 이미지 속 글자(image_text),
+            첨부파일별 추출 텍스트, AI 요약.
         """
         n = self.session.get(Notice, notice_id)
         if n is None or n.crawl_state != CrawlState.parsed:
             return {"error": f"id {notice_id} 공지가 없습니다"}
         self._mark(n.id)
+        self._ensure_image_text(n)
         return {
             "id": n.id,
             "title": n.title,
@@ -189,6 +197,7 @@ class NoticeTools:
             "author_dept": n.author_dept,
             "url": n.url,
             "body": _clip((n.body_text or "").strip(), MAX_BODY_CHARS),
+            "image_text": _clip(n.image_text, MAX_BODY_CHARS) if n.image_text else None,
             "attachments": [
                 {
                     "filename": a.filename,
@@ -197,7 +206,24 @@ class NoticeTools:
                 for a in n.attachments
                 if a.extract_state == ExtractState.ok
             ],
+            "ai_summary": n.ai_summary,
         }
+
+    def _ensure_image_text(self, n: Notice) -> None:
+        """본문 이미지 속 글자가 아직 없으면 지금 옮겨 적고 저장한다.
+
+        도구 응답에는 글자만 실을 수 있어서, 포스터에 내용이 있는 공지는 그대로 두면
+        채팅에서 "내용이 없다"로 보인다. 한 번 저장하면 같은 공지는 다시 돌지 않는다.
+        """
+        if not vision.needs_image_text(n):
+            return
+        try:
+            with make_http_client() as http:
+                vision.transcribe(n, llm.make_client(), http)
+            self.session.commit()
+        except (errors.APIError, ValueError) as exc:
+            self.session.rollback()
+            log.warning("채팅 중 이미지 글자 추출 실패 %s: %s", n.id, exc)
 
 
 def answer(session: Session, history: list[ChatTurn]) -> ChatResult:

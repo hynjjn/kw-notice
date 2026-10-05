@@ -18,6 +18,7 @@ from sqlalchemy import or_, select
 
 from app.crawler.http import make_client as make_http_client
 from app.db import SessionLocal
+from app.extract.vision import download_images
 from app.models import ExtractState, Notice
 from app.summarize import llm
 from app.summarize.prompt import SYSTEM, build_content
@@ -58,26 +59,11 @@ def _usable_attachments(notice: Notice):
 
 
 def _to_parts(content: list[dict], http: httpx.Client) -> list[types.Part]:
-    """prompt 의 블록을 Gemini Part 로 바꾼다.
-
-    Gemini 는 임의의 웹 URL 을 이미지로 받지 않으므로 직접 내려받아 싣는다.
-    한 장을 못 받아도 나머지로 요약은 계속한다.
-    """
-    parts: list[types.Part] = []
-    for block in content:
-        if block["type"] == "text":
-            parts.append(types.Part.from_text(text=block["text"]))
-            continue
-        url = block["source"]["url"]
-        try:
-            resp = http.get(url)
-            resp.raise_for_status()
-        except httpx.HTTPError as exc:
-            log.warning("이미지를 못 받았다 %s: %s", url, exc)
-            continue
-        mime = resp.headers.get("content-type", "").split(";")[0] or "image/jpeg"
-        parts.append(types.Part.from_bytes(data=resp.content, mime_type=mime))
-    return parts
+    """prompt 의 블록을 Gemini Part 로 바꾼다. 이미지는 내려받아 싣는다."""
+    parts = [types.Part.from_text(text=b["text"]) for b in content if b["type"] == "text"]
+    urls = [b["source"]["url"] for b in content if b["type"] == "image"]
+    # 그림을 앞에 둔다. 글자 블록이 그림을 설명하는 순서가 자연스럽다.
+    return [*download_images(urls, http), *parts]
 
 
 def summarize_one(

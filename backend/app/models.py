@@ -121,6 +121,10 @@ class Notice(Base):
     # 본문이 포스터 이미지 한 장뿐인 공지가 적지 않다. 이 경우 body_text 가 비고
     # 요약할 재료가 없으므로, 4단계에서 vision 으로 읽을 이미지 URL 을 들고 있는다.
     inline_image_urls: Mapped[list[str] | None] = mapped_column(ARRAY(Text))
+    # 본문 이미지(포스터) 속 글자를 Gemini 로 옮겨 적은 것. 처음 필요할 때 만든다.
+    # 포스터에만 일정, 자격, 유의사항이 있는 공지가 많아서 첨부 추출과 같은 대접을 한다.
+    image_text: Mapped[str | None] = mapped_column(Text)
+    image_text_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True))
 
     # 본문 변경 감지. normalize(body_text) 의 sha256.
     # 값이 달라지면 content_revision 을 올리고 요약을 다시 만든다.
