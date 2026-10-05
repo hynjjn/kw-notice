@@ -84,3 +84,14 @@ export interface NoticeQuery {
   limit?: number;
   offset?: number;
 }
+
+export interface ChatNoticeRef {
+  id: number;
+  title: string;
+  deadline_at: string | null;
+}
+
+export interface ChatReply {
+  reply: string;
+  notices: ChatNoticeRef[];
+}

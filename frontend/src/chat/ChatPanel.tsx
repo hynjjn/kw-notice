@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
+import { Link } from "react-router-dom";
 import { Markdown } from "../components/Markdown";
+import { noticeHref } from "../links";
 import { useChat } from "./chat";
 
 const SUGGESTIONS = [
@@ -73,12 +75,35 @@ export function ChatPanel({ compact = false }: { compact?: boolean }) {
                   {m.text}
                 </div>
               ) : (
-                <div
-                  key={m.id}
-                  className="max-w-[90%] self-start rounded-2xl rounded-bl-md px-3.5 py-2"
-                  style={{ background: "var(--ai-bg)", border: "1px solid var(--ai-line)" }}
-                >
-                  <Markdown>{m.text}</Markdown>
+                <div key={m.id} className="flex max-w-[90%] flex-col gap-1.5 self-start">
+                  <div
+                    className="rounded-2xl rounded-bl-md px-3.5 py-2"
+                    style={
+                      m.error
+                        ? { border: "1px solid var(--line)", color: "var(--accent)" }
+                        : { background: "var(--ai-bg)", border: "1px solid var(--ai-line)" }
+                    }
+                  >
+                    {m.error ? m.text : <Markdown>{m.text}</Markdown>}
+                  </div>
+                  {m.notices && m.notices.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {m.notices.map((n) => (
+                        <Link
+                          key={n.id}
+                          to={noticeHref(n.id)}
+                          title={n.title}
+                          className="max-w-full truncate rounded-full px-2.5 py-1 text-[11.5px]"
+                          style={{ border: "1px solid var(--line)", color: "var(--body-text)" }}
+                        >
+                          📄 {n.title}
+                          {n.deadline_at && (
+                            <span style={{ color: "var(--accent)" }}> · ~{n.deadline_at.slice(5)}</span>
+                          )}
+                        </Link>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ),
             )}

@@ -3,7 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import meta, notices
+from app.api.routes import chat, meta, notices
 from app.config import settings
 
 app = FastAPI(
@@ -25,6 +25,7 @@ app.add_middleware(
 api = APIRouter(prefix="/api")
 api.include_router(notices.router)
 api.include_router(meta.router)
+api.include_router(chat.router)
 app.include_router(api)
 
 

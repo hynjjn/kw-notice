@@ -60,6 +60,7 @@ Gemini 로 요약한다(`POST /api/notices/{id}/summary`). 키가 없으면 버�
 | `GET /api/notices/{id}` | 본문, 첨부, 이미지 |
 | `PUT /api/notices/{id}/read` `​/star` | 읽음, 별표 토글 |
 | `POST /api/notices/{id}/summary` | 그 공지 하나를 지금 요약 |
+| `POST /api/chat` | 공지 AI 채팅. 대화 전체를 보내면 답과 참고한 공지를 돌려준다 |
 | `GET /api/stats` | 사이드바 집계 |
 | `GET /api/sources` | 출처 목록 |
 | `GET /api/digests/{date}` | 하루치 브리핑 |
@@ -71,6 +72,20 @@ Gemini 로 요약한다(`POST /api/notices/{id}/summary`). 키가 없으면 버�
 
 `q` 는 제목, 본문뿐 아니라 **첨부파일에서 추출한 텍스트까지** 훑는다.
 "통장사본" 처럼 본문에 없고 첨부 안에만 있는 말로도 공지가 찾아진다.
+
+## AI 채팅
+
+오른쪽 아래 ✨ 버튼이 떠 있는 채팅 창을 열고, ⤢ 를 누르면 `/chat` 전용 페이지로
+넓어진다. 두 화면은 같은 대화를 쓴다.
+
+임베딩이 아직 없어서 벡터 검색 대신 Gemini 에게 도구 두 개를 쥐여 준다
+(`backend/app/chat/service.py`). `search_notices` 는 제목, 본문, 첨부 추출 텍스트를
+띄어쓰기 무시하고 찾고, 분류, 마감 임박, 최근 게시로 거를 수 있다. `get_notice` 는
+본문과 첨부 내용을 읽는다. 답 속 공지는 `[제목](notice:ID)` 링크로 오고, 누르면
+`/?notice=ID` 로 그 공지가 열린다.
+
+대화는 서버에 저장하지 않는다. 프론트가 매 요청에 대화 전체(최근 20개)를 싣는다.
+마감 임박 검색은 `deadline_at` 에 기대는데, 이 값은 요약을 만든 공지에만 있다.
 
 ## 배포 계획
 

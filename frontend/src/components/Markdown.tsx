@@ -1,5 +1,15 @@
-import ReactMarkdown from "react-markdown";
+import ReactMarkdown, { defaultUrlTransform } from "react-markdown";
+import { Link } from "react-router-dom";
 import remarkGfm from "remark-gfm";
+import { noticeHref } from "../links";
+
+/** AI 채팅이 공지를 가리킬 때 쓰는 링크. [제목](notice:123) */
+const NOTICE_LINK = /^notice:(\d+)$/;
+
+/** notice: 는 우리가 정한 스킴이다. 기본 변환기는 모르는 스킴을 지우므로 따로 살린다. */
+function urlTransform(url: string): string {
+  return NOTICE_LINK.test(url) ? url : defaultUrlTransform(url);
+}
 
 /**
  * AI 가 쓴 마크다운을 그린다. 원시 HTML 은 react-markdown 이 기본으로 버리므로
@@ -11,12 +21,17 @@ export function Markdown({ children }: { children: string }) {
     <div className="md">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
+        urlTransform={urlTransform}
         components={{
-          a: ({ href, children }) => (
-            <a href={href} target="_blank" rel="noreferrer">
-              {children}
-            </a>
-          ),
+          a: ({ href, children }) => {
+            const notice = href?.match(NOTICE_LINK);
+            if (notice) return <Link to={noticeHref(Number(notice[1]))}>{children}</Link>;
+            return (
+              <a href={href} target="_blank" rel="noreferrer">
+                {children}
+              </a>
+            );
+          },
         }}
       >
         {children}

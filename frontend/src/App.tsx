@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { ChatFab } from "./chat/ChatFab";
 import { DigestCard } from "./components/DigestCard";
 import { NoticeList } from "./components/NoticeList";
@@ -14,7 +15,10 @@ export default function App() {
   // 첫 화면은 사이드바의 "전체 공지"와 같은 상태여야 한다.
   const [filter, setFilter] = useState<Filter>({ pinned: false });
   const [search, setSearch] = useState("");
-  const [selectedId, setSelectedId] = useState<number | null>(null);
+  // 고른 공지는 주소(?notice=ID)에 둔다. AI 채팅의 공지 링크가 이 주소로 와서
+  // 공지를 연다. 새로고침이나 링크 공유에도 같은 공지가 열린다.
+  const [params, setParams] = useSearchParams();
+  const selectedId = Number(params.get("notice")) || null;
 
   const query = useMemo(
     // 우리가 처음 본 순서로 줄 세운다. 오래된 공지가 수정돼서 다시 올라온
@@ -31,7 +35,7 @@ export default function App() {
   const setStar = useSetStar();
 
   function select(n: Notice) {
-    setSelectedId(n.id);
+    setParams({ notice: String(n.id) });
     if (!n.is_read) setRead.mutate({ id: n.id, value: true });
   }
 
