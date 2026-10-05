@@ -5,7 +5,7 @@ from __future__ import annotations
 from app.models import Attachment, Notice
 
 # 이 문자열은 절대 바뀌지 않아야 한다. 매 요청 앞머리에 그대로 실려서
-# prompt cache 의 prefix 가 된다. 날짜 같은 변동값을 넣으면 캐시가 매번 깨진다.
+# 암묵적 캐시의 prefix 가 된다. 날짜 같은 변동값을 넣으면 캐시가 매번 깨진다.
 SYSTEM = """당신은 광운대학교 학생에게 공지사항을 요약해 주는 도우미입니다.
 
 요약 원칙:
@@ -35,7 +35,7 @@ def _clip(text: str, limit: int) -> str:
 
 
 def build_content(notice: Notice, attachments: list[Attachment]) -> list[dict]:
-    """공지 하나를 Claude 에 보낼 content 블록 목록으로 만든다."""
+    """공지 하나를 모델에 보낼 content 블록 목록으로 만든다."""
     head = [
         f"제목: {notice.title}",
         f"작성일: {notice.posted_at}",

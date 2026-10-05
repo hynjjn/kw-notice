@@ -199,29 +199,32 @@ kw_main     78    78     0    58     18
 ## AI 요약
 
 ```bash
+# 평소에는 프론트의 "AI 요약 만들기" 버튼이 한 건씩 요약한다. 아래는 수동 일괄용이다.
 python -m app.summarize --dry-run          # API 호출 없이 대상과 분량만 확인
 python -m app.summarize --limit 5          # 5건만
 python -m app.summarize                    # 요약이 없거나 본문이 바뀐 것 전부
 python -m app.summarize --digest 2026-09-23   # 그날의 하루치 요약
 ```
 
-`ANTHROPIC_API_KEY` 가 `.env` 에 있어야 한다.
+`GEMINI_API_KEY` 가 `.env` 에 있어야 한다. 모델은 `GEMINI_MODEL` 로 바꾼다
+(기본값 `gemini-3.8-flash`).
 
 ### 설계
 
-**모델은 `claude-opus-5`, effort 는 `low`.** 요약은 판단이 복잡한 일이 아니라
-읽고 추리는 일이다. effort 를 낮춰도 품질이 떨어지지 않으면서 토큰이 줄어든다.
+**모델은 Gemini Flash, thinking level 은 `low`.** 요약은 판단이 복잡한 일이 아니라
+읽고 추리는 일이다. 생각을 짧게 시켜도 품질이 떨어지지 않으면서 토큰이 줄어든다.
+호출은 `app/summarize/llm.py` 한곳에 모았다.
 
-**system 프롬프트에 `cache_control` 을 건다.** 프롬프트 캐시는 prefix 일치라
-앞머리가 한 바이트라도 바뀌면 전부 깨진다. `prompt.SYSTEM` 에는 날짜나 공지별
+**system 프롬프트에는 변동값을 넣지 않는다.** Gemini 의 암묵적 캐시는 prefix
+일치라 앞머리가 한 바이트라도 바뀌면 깨진다. `prompt.SYSTEM` 에는 날짜나 공지별
 값이 들어가지 않는다. 공지마다 달라지는 내용은 전부 user 메시지에 있다.
 
-**출력은 구조화한다.** `messages.parse(output_format=NoticeSummary)` 로
+**출력은 구조화한다.** `response_schema=NoticeSummary` 로
 `bullets` 와 `deadline` 을 받는다. 마감일이 따로 나와야 "마감 임박한 것만"
 필터를 만들 수 있다. 자유 텍스트에서 날짜를 다시 긁는 것보다 정확하다.
 
 **본문이 이미지뿐인 공지는 그림을 함께 보낸다.** `inline_image_urls` 를
-image 블록(URL source)으로 최대 5장까지 싣는다. 학교 챗봇이 못 하는 부분이다.
+직접 내려받아 이미지 Part 로 최대 5장까지 싣는다. 학교 챗봇이 못 하는 부분이다.
 
 **하루치 요약은 원문을 다시 읽지 않는다.** 개별 요약이 이미 있으므로 그것만
 모아서 브리핑한다. 같은 날 공지 20건을 원문으로 다시 넣는 것보다 훨씬 싸다.

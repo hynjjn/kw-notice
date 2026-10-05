@@ -9,17 +9,15 @@ from __future__ import annotations
 import datetime as dt
 import logging
 
-import anthropic
 from sqlalchemy import select
 
-from app.config import settings
 from app.db import SessionLocal
 from app.models import CrawlState, DailyDigest, Notice
+from app.summarize import llm
 from app.summarize.schema import DigestSummary
 
 log = logging.getLogger(__name__)
 
-MODEL = "claude-opus-5"
 SYSTEM = """당신은 광운대학교 학생에게 그날의 공지를 브리핑합니다.
 
 - 바쁜 학생이 30초 안에 읽고 "오늘 내가 챙길 게 있나"를 판단할 수 있게 씁니다.
@@ -72,24 +70,13 @@ def build(target: dt.date, dry_run: bool = False) -> DailyDigest | None:
             print(rendered[:1200])
             return None
 
-        if not settings.anthropic_api_key:
-            raise RuntimeError("ANTHROPIC_API_KEY 가 없다")
-
-        client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
-        response = client.messages.parse(
-            model=MODEL,
-            max_tokens=2_000,
-            system=[{"type": "text", "text": SYSTEM, "cache_control": {"type": "ephemeral"}}],
-            output_config={"effort": "low"},
-            messages=[
-                {
-                    "role": "user",
-                    "content": f"{target} 에 올라온 공지 {len(notices)}건입니다.\n\n{rendered}",
-                }
-            ],
-            output_format=DigestSummary,
+        client = llm.make_client()
+        result, _ = llm.generate(
+            client,
+            system=SYSTEM,
+            contents=f"{target} 에 올라온 공지 {len(notices)}건입니다.\n\n{rendered}",
+            schema=DigestSummary,
         )
-        result = response.parsed_output
 
         summary_md = result.headline + "\n\n" + "\n".join(f"- {b}" for b in result.bullets)
         digest = session.scalar(
@@ -103,7 +90,7 @@ def build(target: dt.date, dry_run: bool = False) -> DailyDigest | None:
 
         digest.summary_md = summary_md
         digest.notice_ids = [n.id for n in notices]
-        digest.model = MODEL
+        digest.model = llm.model_name()
         session.commit()
         session.refresh(digest)
         return digest

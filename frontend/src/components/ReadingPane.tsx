@@ -1,4 +1,5 @@
 import type { NoticeDetail } from "../api/types";
+import { useSummarize } from "../hooks";
 
 function Meta({ notice }: { notice: NoticeDetail }) {
   const bits = [
@@ -29,6 +30,35 @@ function Meta({ notice }: { notice: NoticeDetail }) {
       >
         원문 보기 ↗
       </a>
+    </div>
+  );
+}
+
+function SummarizeButton({ notice }: { notice: NoticeDetail }) {
+  const summarize = useSummarize();
+  // 다른 공지로 옮기면 이전 공지의 진행 상태나 오류를 보여 주지 않는다.
+  const mine = summarize.variables === notice.id;
+  const pending = mine && summarize.isPending;
+  const error = mine && summarize.isError ? summarize.error : null;
+
+  return (
+    <div className="my-4 flex flex-wrap items-center gap-3 text-[12.5px]">
+      <button
+        type="button"
+        disabled={pending}
+        onClick={() => summarize.mutate(notice.id)}
+        className="rounded-xl px-3 py-2 font-bold disabled:opacity-60"
+        style={{
+          background: "var(--ai-bg)",
+          border: "1px solid var(--ai-line)",
+          color: "var(--unread)",
+        }}
+      >
+        {pending ? "요약하는 중..." : "✨ AI 요약 만들기"}
+      </button>
+      {error && (
+        <span style={{ color: "var(--accent)" }}>요약하지 못했습니다. {error.message}</span>
+      )}
     </div>
   );
 }
@@ -73,11 +103,9 @@ export function ReadingPane({
             </div>
           )}
         </div>
-      ) : (
-        <div className="my-4 text-[12.5px]" style={{ color: "var(--faint)" }}>
-          아직 요약이 없습니다. <code>python -m app.summarize</code> 를 돌리면 생깁니다.
-        </div>
-      )}
+      ) : notice.body_text?.trim() || notice.inline_image_urls?.length ? (
+        <SummarizeButton notice={notice} />
+      ) : null}
 
       {/* 서버에서 nh3 로 정제한 HTML 이다. script, 이벤트 핸들러, 글자색은
           이미 걷혔다. 평문으로 바꿔 보여 주면 굵기와 크기가 사라지고,

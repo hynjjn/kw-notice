@@ -12,11 +12,22 @@ class ApiError extends Error {
   }
 }
 
+/** FastAPI 는 {"detail": "..."} 로 오류를 준다. 사람이 읽을 문장만 꺼낸다. */
+function detailOf(body: string): string {
+  try {
+    const detail = (JSON.parse(body) as { detail?: unknown }).detail;
+    if (typeof detail === "string") return detail;
+  } catch {
+    // JSON 이 아니면 받은 그대로 쓴다.
+  }
+  return body;
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, init);
   if (!res.ok) {
-    const detail = await res.text().catch(() => "");
-    throw new ApiError(res.status, detail || res.statusText);
+    const body = await res.text().catch(() => "");
+    throw new ApiError(res.status, detailOf(body) || res.statusText);
   }
   return res.json() as Promise<T>;
 }
@@ -35,6 +46,8 @@ export const api = {
   notices: (params: NoticeQuery) =>
     request<NoticeList>(`/notices${toQuery(params)}`),
   notice: (id: number) => request<NoticeDetail>(`/notices/${id}`),
+  summarize: (id: number) =>
+    request<NoticeDetail>(`/notices/${id}/summary`, { method: "POST" }),
   stats: () => request<Stats>("/stats"),
   digest: (date: string) => request<Digest>(`/digests/${date}`),
   setRead: (id: number, value: boolean) =>

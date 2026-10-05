@@ -1,6 +1,6 @@
 # KW Notice
 
-광운대학교 공지사항을 매일 모아서 요약하고, 첨부파일 내용까지 검색하게 해 주는 서비스.
+광운대학교 공지사항을 매일 모으고, 누르면 요약해 주고, 첨부파일 내용까지 검색하게 해 주는 서비스.
 
 ## 왜 만드는가
 
@@ -35,7 +35,7 @@ uvicorn app.api.main:app --reload --port 8000
 cd frontend && npm install && npm run dev   # http://localhost:5173
 ```
 
-요약까지 쓰려면 `backend/.env` 에 `ANTHROPIC_API_KEY` 가 필요하다.
+요약까지 쓰려면 `backend/.env` 에 `GEMINI_API_KEY` 가 필요하다.
 
 ## 매일 돌리기
 
@@ -45,9 +45,12 @@ python -m app.scheduler            # 매일 07:00 (Asia/Seoul)
 python -m app.scheduler --now      # 한 번만 즉시
 ```
 
-수집 → 첨부 추출 → 요약 → 하루치 브리핑을 순서대로 돈다. 각 단계가 앞 단계의
-상태를 보고 자기 몫만 집어 가므로, 중간에 실패해도 다음 실행이 이어서 한다.
-API 키가 없으면 요약 단계만 건너뛴다.
+수집 → 첨부 추출을 순서대로 돈다. 각 단계가 앞 단계의 상태를 보고 자기 몫만
+집어 가므로, 중간에 실패해도 다음 실행이 이어서 한다.
+
+요약은 자동으로 돌지 않는다. 공지를 열고 "AI 요약 만들기"를 누르면 그 한 건만
+Gemini 로 요약한다(`POST /api/notices/{id}/summary`). 키가 없으면 버튼이 503 을
+돌려준다. 하루치 브리핑은 `python -m app.summarize --digest <날짜>` 로 손으로 만든다.
 
 ## API
 
@@ -56,6 +59,7 @@ API 키가 없으면 요약 단계만 건너뛴다.
 | `GET /api/notices` | 목록. `source` `category` `pinned` `unread` `starred` `deadline_soon` `q` `sort` |
 | `GET /api/notices/{id}` | 본문, 첨부, 이미지 |
 | `PUT /api/notices/{id}/read` `​/star` | 읽음, 별표 토글 |
+| `POST /api/notices/{id}/summary` | 그 공지 하나를 지금 요약 |
 | `GET /api/stats` | 사이드바 집계 |
 | `GET /api/sources` | 출처 목록 |
 | `GET /api/digests/{date}` | 하루치 브리핑 |

@@ -4,6 +4,7 @@ import datetime as dt
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from google.genai import errors as genai_errors
 from sqlalchemy import BigInteger, Select, case, cast, exists, func, or_, select
 from sqlalchemy.orm import Session
 
@@ -16,7 +17,11 @@ from app.api.schemas import (
     NoticeListResponse,
     StateOut,
 )
+from app.config import settings
+from app.crawler.http import make_client as make_http_client
 from app.models import Attachment, CrawlState, ExtractState, Notice, Source, User, UserNoticeState
+from app.summarize import llm
+from app.summarize.runner import summarize_and_store
 
 router = APIRouter(prefix="/notices", tags=["notices"])
 
@@ -245,6 +250,35 @@ def get_notice(
             for a in notice.attachments
         ],
     )
+
+
+@router.post("/{notice_id}/summary", response_model=NoticeDetail)
+def summarize_notice(
+    notice_id: int,
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+) -> NoticeDetail:
+    """사용자가 누른 공지 하나만 요약한다. 자동 요약은 돌리지 않는다.
+
+    Gemini 를 기다리느라 수 초 걸린다. 동기 함수라 FastAPI 가 스레드풀에서 돌린다.
+    """
+    notice = session.get(Notice, notice_id)
+    if notice is None or notice.crawl_state != CrawlState.parsed:
+        raise HTTPException(status_code=404, detail="공지를 찾을 수 없다")
+    if not settings.gemini_api_key:
+        raise HTTPException(status_code=503, detail="GEMINI_API_KEY 가 설정되지 않았다")
+    if not (notice.body_text or "").strip() and not notice.inline_image_urls:
+        raise HTTPException(status_code=422, detail="요약할 본문이 없다")
+
+    try:
+        with make_http_client() as http:
+            summarize_and_store(llm.make_client(), http, notice)
+    except (genai_errors.APIError, ValueError) as exc:
+        session.rollback()
+        raise HTTPException(status_code=502, detail=f"요약 실패: {exc}") from exc
+    session.commit()
+
+    return get_notice(notice_id, session, user)
 
 
 def _set_state(

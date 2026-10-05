@@ -7,7 +7,9 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     database_url: str = "postgresql+psycopg://kwnotice:kwnotice@localhost:5433/kwnotice"
-    anthropic_api_key: str = ""
+    gemini_api_key: str = ""
+    # 모델 이름은 자주 바뀐다. 코드 대신 .env 에서 갈아 끼운다.
+    gemini_model: str = "gemini-3.8-flash"
     attachment_dir: Path = Path("./var/attachments")
 
     # MVP 는 단일 사용자다. 이 이메일의 행이 읽음, 별표의 주인이 된다.

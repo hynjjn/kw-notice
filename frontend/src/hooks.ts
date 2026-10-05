@@ -45,3 +45,17 @@ function useToggle(fn: (id: number, value: boolean) => Promise<void>) {
 
 export const useSetRead = () => useToggle(api.setRead);
 export const useSetStar = () => useToggle(api.setStar);
+
+/** 요약은 사용자가 누를 때만 만든다. 돌려받은 상세로 캐시를 바로 갈아 끼운다. */
+export function useSummarize() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: api.summarize,
+    onSuccess: (detail) => {
+      qc.setQueryData(["notice", detail.id], detail);
+      // 목록의 마감일 표시와 마감 임박 집계가 바뀔 수 있다.
+      qc.invalidateQueries({ queryKey: ["notices"] });
+      qc.invalidateQueries({ queryKey: ["stats"] });
+    },
+  });
+}

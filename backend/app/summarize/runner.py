@@ -1,6 +1,8 @@
 """공지 요약 실행기.
 
 ai_summary 가 비었거나 본문 개정이 요약보다 최신인 공지를 골라 요약한다.
+매일 파이프라인은 요약하지 않는다. 사용자가 공지에서 요약을 누를 때
+(POST /api/notices/{id}/summary) 한 건씩 돌고, 이 CLI 는 수동 일괄용이다.
 """
 
 from __future__ import annotations
@@ -9,20 +11,20 @@ import datetime as dt
 import logging
 from dataclasses import dataclass, field
 
-import anthropic
+import httpx
+from google import genai
+from google.genai import errors, types
 from sqlalchemy import or_, select
 
-from app.config import settings
+from app.crawler.http import make_client as make_http_client
 from app.db import SessionLocal
 from app.models import ExtractState, Notice
+from app.summarize import llm
 from app.summarize.prompt import SYSTEM, build_content
 from app.summarize.schema import NoticeSummary
 
 log = logging.getLogger(__name__)
 
-MODEL = "claude-opus-5"
-# 요약은 판단이 복잡한 일이 아니다. effort 를 낮춰 토큰을 아낀다.
-EFFORT = "low"
 MAX_TOKENS = 2_000
 
 
@@ -55,18 +57,40 @@ def _usable_attachments(notice: Notice):
     return [a for a in notice.attachments if a.extract_state == ExtractState.ok]
 
 
-def summarize_one(client: anthropic.Anthropic, notice: Notice) -> tuple[NoticeSummary, object]:
-    content = build_content(notice, _usable_attachments(notice))
+def _to_parts(content: list[dict], http: httpx.Client) -> list[types.Part]:
+    """prompt 의 블록을 Gemini Part 로 바꾼다.
 
-    response = client.messages.parse(
-        model=MODEL,
+    Gemini 는 임의의 웹 URL 을 이미지로 받지 않으므로 직접 내려받아 싣는다.
+    한 장을 못 받아도 나머지로 요약은 계속한다.
+    """
+    parts: list[types.Part] = []
+    for block in content:
+        if block["type"] == "text":
+            parts.append(types.Part.from_text(text=block["text"]))
+            continue
+        url = block["source"]["url"]
+        try:
+            resp = http.get(url)
+            resp.raise_for_status()
+        except httpx.HTTPError as exc:
+            log.warning("이미지를 못 받았다 %s: %s", url, exc)
+            continue
+        mime = resp.headers.get("content-type", "").split(";")[0] or "image/jpeg"
+        parts.append(types.Part.from_bytes(data=resp.content, mime_type=mime))
+    return parts
+
+
+def summarize_one(
+    client: genai.Client, http: httpx.Client, notice: Notice
+) -> tuple[NoticeSummary, types.GenerateContentResponseUsageMetadata | None]:
+    content = build_content(notice, _usable_attachments(notice))
+    return llm.generate(
+        client,
+        system=SYSTEM,
+        contents=_to_parts(content, http),
+        schema=NoticeSummary,
         max_tokens=MAX_TOKENS,
-        system=[{"type": "text", "text": SYSTEM, "cache_control": {"type": "ephemeral"}}],
-        output_config={"effort": EFFORT},
-        messages=[{"role": "user", "content": content}],
-        output_format=NoticeSummary,
     )
-    return response.parsed_output, response.usage
 
 
 def _parse_deadline(raw: str | None) -> dt.date | None:
@@ -77,6 +101,18 @@ def _parse_deadline(raw: str | None) -> dt.date | None:
     except ValueError:
         log.warning("마감일 형식이 이상하다: %r", raw)
         return None
+
+
+def summarize_and_store(
+    client: genai.Client, http: httpx.Client, notice: Notice
+) -> types.GenerateContentResponseUsageMetadata | None:
+    """요약해서 notice 에 채운다. commit 은 호출한 쪽이 한다."""
+    summary, usage = summarize_one(client, http, notice)
+    notice.ai_summary = "\n".join(f"- {b}" for b in summary.bullets)
+    notice.ai_summary_model = llm.model_name()
+    notice.ai_summarized_at = dt.datetime.now(dt.UTC)
+    notice.deadline_at = _parse_deadline(summary.deadline)
+    return usage
 
 
 def run(limit: int | None = None, force: bool = False, dry_run: bool = False) -> SummaryStats:
@@ -91,11 +127,8 @@ def run(limit: int | None = None, force: bool = False, dry_run: bool = False) ->
         if dry_run:
             return _dry_run(notices, stats)
 
-        if not settings.anthropic_api_key:
-            raise RuntimeError(
-                "ANTHROPIC_API_KEY 가 없다. .env 에 넣거나 환경변수로 내보낼 것."
-            )
-        client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
+        client = llm.make_client()
+        http = make_http_client()
 
         for notice in notices:
             if not (notice.body_text or "").strip() and not notice.inline_image_urls:
@@ -103,23 +136,23 @@ def run(limit: int | None = None, force: bool = False, dry_run: bool = False) ->
                 continue
 
             try:
-                summary, usage = summarize_one(client, notice)
-            except anthropic.APIError as exc:
+                usage = summarize_and_store(client, http, notice)
+            except (errors.APIError, ValueError) as exc:
                 stats.failed += 1
                 stats.errors.append(f"{notice.external_id}: {exc}")
                 log.warning("요약 실패 %s: %s", notice.external_id, exc)
                 continue
-
-            notice.ai_summary = "\n".join(f"- {b}" for b in summary.bullets)
-            notice.ai_summary_model = MODEL
-            notice.ai_summarized_at = dt.datetime.now(dt.UTC)
-            notice.deadline_at = _parse_deadline(summary.deadline)
             session.commit()
 
             stats.done += 1
-            stats.input_tokens += usage.input_tokens
-            stats.output_tokens += usage.output_tokens
-            stats.cache_read += usage.cache_read_input_tokens or 0
+            if usage:
+                stats.input_tokens += usage.prompt_token_count or 0
+                stats.output_tokens += (usage.candidates_token_count or 0) + (
+                    usage.thoughts_token_count or 0
+                )
+                stats.cache_read += usage.cached_content_token_count or 0
+
+        http.close()
 
     return stats
 
@@ -138,6 +171,6 @@ def _dry_run(notices, stats: SummaryStats) -> SummaryStats:
         print(f"  {notice.external_id:>6} {chars:>7,}자 이미지{imgs} | {notice.title[:46]}")
 
     print(f"\n대상 {stats.done}건 / 본문+첨부 {total_chars:,}자 / 이미지 {images}장")
-    # 한국어는 대략 1자당 0.7토큰. 정확한 값은 messages.count_tokens 가 필요하다.
+    # 한국어는 대략 1자당 0.7토큰. 정확한 값은 models.count_tokens 가 필요하다.
     print(f"입력 토큰 대략 {int(total_chars * 0.7):,} (실측 아님)")
     return stats
