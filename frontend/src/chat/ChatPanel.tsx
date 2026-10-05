@@ -17,6 +17,25 @@ const NOTICE_SUGGESTIONS = [
   "비슷한 공지 더 있어?",
 ];
 
+/** 답이 오기 전까지 답 말풍선 자리를 잡아 둔다. 도구 호출 때문에 수 초 걸린다. */
+function AnswerSkeleton() {
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className="flex w-[75%] flex-col gap-2 self-start rounded-2xl rounded-bl-md px-3.5 py-3"
+      style={{ background: "var(--ai-bg)", border: "1px solid var(--ai-line)" }}
+    >
+      <span className="text-[12px] font-bold" style={{ color: "var(--unread)" }}>
+        ✨ 생각 중...
+      </span>
+      <span className="skeleton-line w-full" />
+      <span className="skeleton-line w-[85%]" />
+      <span className="skeleton-line w-[60%]" />
+    </div>
+  );
+}
+
 /** 대화 목록과 입력창. 떠 있는 창과 전용 페이지가 같이 쓴다. */
 export function ChatPanel({ compact = false }: { compact?: boolean }) {
   const { messages, pending, send, currentNotice, attachNotice } = useChat();
@@ -136,11 +155,7 @@ export function ChatPanel({ compact = false }: { compact?: boolean }) {
                 </div>
               ),
             )}
-            {pending && (
-              <div className="self-start px-1 text-[12.5px]" style={{ color: "var(--muted)" }}>
-                답을 쓰는 중...
-              </div>
-            )}
+            {pending && <AnswerSkeleton />}
           </div>
         )}
         <div ref={bottomRef} />
