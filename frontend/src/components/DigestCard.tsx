@@ -1,9 +1,8 @@
 import type { Digest } from "../api/types";
+import { Markdown } from "./Markdown";
 
 export function DigestCard({ digest, date }: { digest?: Digest; date: string }) {
   if (!digest) return null;
-  const [headline, ...rest] = digest.summary_md.split("\n").filter(Boolean);
-
   return (
     <div
       className="m-3 rounded-2xl px-4 py-3.5"
@@ -15,16 +14,7 @@ export function DigestCard({ digest, date }: { digest?: Digest; date: string }) 
       >
         ✨ {date} 요약
       </h3>
-      <p className="mb-1.5" style={{ color: "var(--body-text)" }}>
-        {headline}
-      </p>
-      <ul className="list-disc pl-4.5" style={{ color: "var(--body-text)" }}>
-        {rest.map((line) => (
-          <li key={line} className="my-0.5">
-            {line.replace(/^-\s*/, "")}
-          </li>
-        ))}
-      </ul>
+      <Markdown>{digest.summary_md}</Markdown>
     </div>
   );
 }

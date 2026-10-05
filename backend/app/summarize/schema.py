@@ -9,7 +9,10 @@ class NoticeSummary(BaseModel):
     """공지 하나의 요약."""
 
     bullets: list[str] = Field(
-        description="공지의 핵심을 담은 2~5개의 한국어 문장. 각 문장은 한 줄로 끝난다."
+        description=(
+            "공지의 핵심을 담은 2~5개의 한국어 문장. 각 문장은 한 줄로 끝난다. "
+            "목록 기호(-)는 붙이지 않는다. 인라인 마크다운(**굵게**, [링크 글자](URL))은 쓸 수 있다."
+        )
     )
     deadline: str | None = Field(
         default=None,
@@ -25,5 +28,8 @@ class DigestSummary(BaseModel):
 
     headline: str = Field(description="그날을 한 문장으로 요약한 한국어 문장")
     bullets: list[str] = Field(
-        description="그날 놓치면 안 되는 항목 3~5개. 각 항목은 한 줄."
+        description=(
+            "그날 놓치면 안 되는 항목 3~5개. 각 항목은 한 줄. "
+            "목록 기호(-)는 붙이지 않는다. 인라인 마크다운을 쓸 수 있다."
+        )
     )

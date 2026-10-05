@@ -1,5 +1,6 @@
 import type { NoticeDetail } from "../api/types";
 import { useSummarize } from "../hooks";
+import { Markdown } from "./Markdown";
 
 function Meta({ notice }: { notice: NoticeDetail }) {
   const bits = [
@@ -96,7 +97,7 @@ export function ReadingPane({
           <h4 className="mb-1.5 text-xs font-extrabold" style={{ color: "var(--unread)" }}>
             ✨ AI 요약 {notice.attachment_count > 0 && "(첨부파일 포함)"}
           </h4>
-          <div className="whitespace-pre-line">{notice.ai_summary}</div>
+          <Markdown>{notice.ai_summary}</Markdown>
           {notice.deadline_at && (
             <div className="mt-2 text-[12.5px] font-bold" style={{ color: "var(--accent)" }}>
               마감 {notice.deadline_at}
