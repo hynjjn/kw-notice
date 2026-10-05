@@ -12,6 +12,7 @@
 import datetime as dt
 import logging
 import re
+from urllib.parse import quote
 from dataclasses import dataclass, field
 
 from google.genai import errors, types
@@ -50,6 +51,15 @@ SYSTEM = """당신은 광운대학교 학생의 공지사항 도우미입니다.
 - 한국어로, 짧고 읽기 쉽게 답합니다. 마크다운 목록과 **굵게**를 쓸 수 있습니다.
 - 공지와 상관없는 질문에는 짧게 답하고 공지 도우미라는 점을 알려 줍니다.
 
+공지 밖의 정보 (지켜야 할 선):
+- 답의 사실은 도구가 돌려준 공지에서만 가져옵니다. 학생은 이 답을 공지 내용으로 믿고 움직입니다.
+- 길 안내, 교통편, 소요 시간, 버스 번호, 출구 번호, 영업시간처럼 공지에 없고 틀리면 곤란한 정보는
+  기억으로 답하지 않습니다. 대신 공지에 적힌 장소 이름과 주소를 알려 주고, map_links 로 만든 지도 링크를
+  줍니다. "자세한 경로는 지도 앱에서 확인해 주세요"처럼 링크를 누르면 실시간 경로가 나온다고 안내합니다.
+- 학생이 그래도 경로를 알려 달라고 해도 단계별 경로를 지어내지 않습니다. 지도 링크를 다시 안내합니다.
+- 장학금 제도나 용어 뜻처럼 일반 지식으로 짧게 도울 수 있는 질문은 답해도 되지만, 그 부분 앞에
+  "(공지에 없는 일반 정보입니다. 정확한 내용은 확인해 주세요)"를 붙여 공지 내용과 구분합니다.
+
 지금 보고 있는 공지:
 - 질문 앞에 [지금 보고 있는 공지: ...] 가 붙어 있으면 학생이 그 공지를 화면에 열어 둔 채 묻는 것입니다.
 - "이 공지", "이거", "여기", "마감 언제야?"처럼 대상이 빠진 질문은 그 공지를 뜻합니다. get_notice 로 읽고 답합니다.
@@ -80,6 +90,24 @@ class ChatResult:
     notice_ids: list[int] = field(default_factory=list)
 
 
+# 길 안내의 출발지. 학생 대부분이 학교에서 움직인다.
+ORIGIN = "광운대학교"
+
+
+def map_links(place: str) -> dict:
+    """지도 앱의 검색, 길찾기 주소. API 키도 비용도 없이 실시간 경로를 지도 앱에 맡긴다."""
+    place = place.strip()
+    return {
+        "place": place,
+        "kakao_route_from_school": "https://map.kakao.com/?sName="
+        + quote(ORIGIN)
+        + "&eName="
+        + quote(place),
+        "kakao_search": "https://map.kakao.com/?q=" + quote(place),
+        "naver_search": "https://map.naver.com/p/search/" + quote(place),
+    }
+
+
 def _squash(column):
     return func.regexp_replace(column, r"\s+", "", "g")
 
@@ -95,6 +123,17 @@ class NoticeTools:
         self.session = session
         self.focus_id = focus_id
         self.seen: list[int] = []
+
+    def map_links(self, place: str) -> dict:
+        """장소의 지도 링크를 만든다. 길 안내를 물으면 경로를 지어내지 말고 이 링크를 준다.
+
+        Args:
+            place: 공지에 적힌 장소 이름이나 주소. 예: 목동아이스링크, 서울 노원구 광운로 20.
+
+        Returns:
+            광운대학교에서 출발하는 카카오맵 길찾기 링크와 카카오맵, 네이버 지도 검색 링크.
+        """
+        return map_links(place)
 
     def __deepcopy__(self, memo) -> "NoticeTools":
         # SDK 가 config 를 deepcopy 하면서 도구(이 객체의 메서드)까지 복사한다.
@@ -250,7 +289,7 @@ def answer(session: Session, history: list[ChatTurn]) -> ChatResult:
         history=past,
         config=types.GenerateContentConfig(
             system_instruction=SYSTEM.format(today=today, weekday=WEEKDAYS[today.weekday()]),
-            tools=[tools.search_notices, tools.get_notice],
+            tools=[tools.search_notices, tools.get_notice, tools.map_links],
             # SDK 가 도구 호출과 결과 전달을 대신 돈다. 횟수만 묶어 둔다.
             automatic_function_calling=types.AutomaticFunctionCallingConfig(
                 maximum_remote_calls=MAX_TOOL_CALLS
