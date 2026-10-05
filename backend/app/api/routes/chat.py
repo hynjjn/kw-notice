@@ -20,6 +20,8 @@ router = APIRouter(prefix="/chat", tags=["chat"])
 class ChatMessageIn(BaseModel):
     role: Literal["user", "assistant"]
     text: str = Field(min_length=1, max_length=4_000)
+    # 질문을 보낼 때 열려 있던 공지. 사용자 메시지에만 붙는다.
+    notice_id: int | None = None
 
 
 class ChatRequest(BaseModel):
@@ -46,8 +48,23 @@ def chat(body: ChatRequest, session: Session = Depends(get_session)) -> ChatResp
     if not settings.gemini_api_key:
         raise HTTPException(status_code=503, detail="GEMINI_API_KEY 가 설정되지 않았다")
 
+    context_ids = {m.notice_id for m in body.messages if m.notice_id is not None}
+    titles = dict(
+        session.execute(select(Notice.id, Notice.title).where(Notice.id.in_(context_ids))).tuples().all()
+    )
+    # 없는 공지 id 는 맥락에서 뺀다. 지워진 공지를 열어 둔 채 물을 수도 있다.
+    turns = [
+        ChatTurn(
+            m.role,
+            m.text,
+            notice_id=m.notice_id if m.notice_id in titles else None,
+            notice_title=titles.get(m.notice_id) if m.notice_id is not None else None,
+        )
+        for m in body.messages
+    ]
+
     try:
-        result = answer(session, [ChatTurn(m.role, m.text) for m in body.messages])
+        result = answer(session, turns)
     except genai_errors.APIError as exc:
         raise HTTPException(status_code=502, detail=f"AI 응답 실패: {exc}") from exc
 

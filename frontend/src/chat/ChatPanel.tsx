@@ -10,9 +10,18 @@ const SUGGESTIONS = [
   "통장사본 내야 하는 공지가 뭐야?",
 ];
 
+// 공지를 열어 둔 채 물을 때. "이 공지"는 서버가 열린 공지로 풀어 준다.
+const NOTICE_SUGGESTIONS = [
+  "이 공지 마감 언제야?",
+  "신청 방법이랑 필요한 서류 정리해줘",
+  "비슷한 공지 더 있어?",
+];
+
 /** 대화 목록과 입력창. 떠 있는 창과 전용 페이지가 같이 쓴다. */
 export function ChatPanel({ compact = false }: { compact?: boolean }) {
-  const { messages, pending, send } = useChat();
+  const { messages, pending, send, currentNotice, attachNotice } = useChat();
+  const activeId = currentNotice?.id ?? null;
+  const suggestions = currentNotice && attachNotice ? NOTICE_SUGGESTIONS : SUGGESTIONS;
   const [draft, setDraft] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -50,7 +59,7 @@ export function ChatPanel({ compact = false }: { compact?: boolean }) {
               </div>
             </div>
             <div className="flex flex-col gap-2">
-              {SUGGESTIONS.map((s) => (
+              {suggestions.map((s) => (
                 <button
                   key={s}
                   type="button"
@@ -67,12 +76,23 @@ export function ChatPanel({ compact = false }: { compact?: boolean }) {
           <div className="flex flex-col gap-3">
             {messages.map((m) =>
               m.role === "user" ? (
-                <div
-                  key={m.id}
-                  className="max-w-[85%] self-end rounded-2xl rounded-br-md px-3.5 py-2 whitespace-pre-wrap"
-                  style={{ background: "var(--accent)", color: "var(--accent-fg)" }}
-                >
-                  {m.text}
+                <div key={m.id} className="flex max-w-[85%] flex-col items-end gap-1 self-end">
+                  {m.notice && (
+                    <Link
+                      to={noticeHref(m.notice.id)}
+                      title={m.notice.title}
+                      className="max-w-full truncate text-[11px]"
+                      style={{ color: "var(--muted)" }}
+                    >
+                      📄 {m.notice.title}
+                    </Link>
+                  )}
+                  <div
+                    className="rounded-2xl rounded-br-md px-3.5 py-2 whitespace-pre-wrap"
+                    style={{ background: "var(--accent)", color: "var(--accent-fg)" }}
+                  >
+                    {m.text}
+                  </div>
                 </div>
               ) : (
                 <div key={m.id} className="flex max-w-[90%] flex-col gap-1.5 self-start">
@@ -84,7 +104,7 @@ export function ChatPanel({ compact = false }: { compact?: boolean }) {
                         : { background: "var(--ai-bg)", border: "1px solid var(--ai-line)" }
                     }
                   >
-                    {m.error ? m.text : <Markdown>{m.text}</Markdown>}
+                    {m.error ? m.text : <Markdown activeNoticeId={activeId}>{m.text}</Markdown>}
                   </div>
                   {m.notices && m.notices.length > 0 && (
                     <div className="flex flex-wrap gap-1.5">
@@ -92,11 +112,20 @@ export function ChatPanel({ compact = false }: { compact?: boolean }) {
                         <Link
                           key={n.id}
                           to={noticeHref(n.id)}
-                          title={n.title}
+                          title={n.id === activeId ? `지금 열려 있는 공지: ${n.title}` : n.title}
                           className="max-w-full truncate rounded-full px-2.5 py-1 text-[11.5px]"
-                          style={{ border: "1px solid var(--line)", color: "var(--body-text)" }}
+                          style={
+                            n.id === activeId
+                              ? {
+                                  border: "1px solid var(--accent)",
+                                  background: "var(--accent-soft)",
+                                  color: "var(--accent)",
+                                  fontWeight: 700,
+                                }
+                              : { border: "1px solid var(--line)", color: "var(--body-text)" }
+                          }
                         >
-                          📄 {n.title}
+                          {n.id === activeId ? "👀" : "📄"} {n.title}
                           {n.deadline_at && (
                             <span style={{ color: "var(--accent)" }}> · ~{n.deadline_at.slice(5)}</span>
                           )}

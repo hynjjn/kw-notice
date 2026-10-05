@@ -43,7 +43,13 @@ SYSTEM = """당신은 광운대학교 학생의 공지사항 도우미입니다.
 - 공지를 언급할 때는 [공지 제목](notice:ID) 형식의 링크로 씁니다. ID 는 도구가 준 id 입니다.
 - 마감일, 금액, 자격, 신청 방법처럼 학생이 행동하는 데 필요한 정보를 앞에 둡니다.
 - 한국어로, 짧고 읽기 쉽게 답합니다. 마크다운 목록과 **굵게**를 쓸 수 있습니다.
-- 공지와 상관없는 질문에는 짧게 답하고 공지 도우미라는 점을 알려 줍니다."""
+- 공지와 상관없는 질문에는 짧게 답하고 공지 도우미라는 점을 알려 줍니다.
+
+지금 보고 있는 공지:
+- 질문 앞에 [지금 보고 있는 공지: ...] 가 붙어 있으면 학생이 그 공지를 화면에 열어 둔 채 묻는 것입니다.
+- "이 공지", "이거", "여기", "마감 언제야?"처럼 대상이 빠진 질문은 그 공지를 뜻합니다. get_notice 로 읽고 답합니다.
+- 비슷한 공지를 찾는 질문이라도 그 공지와 관련이 있으면 그 공지를 먼저 다루고 나머지를 뒤에 둡니다.
+- 질문이 그 공지와 무관하면 신경 쓰지 않고 평소처럼 답합니다."""
 
 WEEKDAYS = "월화수목금토일"
 _NOTICE_LINK = re.compile(r"\(notice:(\d+)\)")
@@ -53,6 +59,14 @@ _NOTICE_LINK = re.compile(r"\(notice:(\d+)\)")
 class ChatTurn:
     role: str  # "user" | "assistant"
     text: str
+    # 이 질문을 보낼 때 화면에 열려 있던 공지. "이 공지"가 가리키는 대상이다.
+    notice_id: int | None = None
+    notice_title: str | None = None
+
+    def to_model_text(self) -> str:
+        if self.role != "user" or self.notice_id is None:
+            return self.text
+        return f"[지금 보고 있는 공지: [{self.notice_title}](notice:{self.notice_id})]\n{self.text}"
 
 
 @dataclass
@@ -72,8 +86,9 @@ def _clip(text: str, limit: int) -> str:
 class NoticeTools:
     """모델이 부르는 도구. 세션과 '이번 답에서 본 공지'를 들고 다닌다."""
 
-    def __init__(self, session: Session):
+    def __init__(self, session: Session, focus_id: int | None = None):
         self.session = session
+        self.focus_id = focus_id
         self.seen: list[int] = []
 
     def __deepcopy__(self, memo) -> "NoticeTools":
@@ -138,6 +153,8 @@ class NoticeTools:
             stmt.order_by(Notice.posted_at.desc(), Notice.id.desc()).limit(SEARCH_LIMIT)
         ).all()
         log.info("chat search %r cat=%r dl=%s → %d", query, category, deadline_within_days, len(notices))
+        # 열어 둔 공지가 결과에 끼어 있으면 맨 앞으로 올린다.
+        notices = sorted(notices, key=lambda n: n.id != self.focus_id)
         return [
             {
                 "id": n.id,
@@ -186,13 +203,15 @@ class NoticeTools:
 def answer(session: Session, history: list[ChatTurn]) -> ChatResult:
     """대화 기록을 받아 마지막 질문에 답한다. 대화는 서버에 저장하지 않는다."""
     today = dt.date.today()
-    tools = NoticeTools(session)
-
     turns = history[-MAX_HISTORY:]
+    # 마지막 질문을 보낼 때 열려 있던 공지가 이번 답의 중심이다.
+    focus_id = turns[-1].notice_id
+    tools = NoticeTools(session, focus_id)
+
     past = [
         types.Content(
             role="user" if t.role == "user" else "model",
-            parts=[types.Part.from_text(text=t.text)],
+            parts=[types.Part.from_text(text=t.to_model_text())],
         )
         for t in turns[:-1]
     ]
@@ -213,10 +232,12 @@ def answer(session: Session, history: list[ChatTurn]) -> ChatResult:
             thinking_config=types.ThinkingConfig(thinking_level=llm.THINKING_LEVEL),
         ),
     )
-    response = chat.send_message(turns[-1].text)
+    response = chat.send_message(turns[-1].to_model_text())
 
     reply = (response.text or "").strip() or "답을 만들지 못했습니다. 질문을 바꿔 다시 물어봐 주세요."
     # 답에 링크로 등장한 공지를 앞에, 읽기만 한 공지를 뒤에 둔다.
     linked = [int(m) for m in _NOTICE_LINK.findall(reply)]
     ordered = list(dict.fromkeys(linked + tools.seen))
+    # 열어 둔 공지가 답에 쓰였으면 바로가기 맨 앞에 둔다. 쓰이지 않았으면 끼워 넣지 않는다.
+    ordered.sort(key=lambda nid: nid != focus_id)
     return ChatResult(reply=reply, notice_ids=ordered)

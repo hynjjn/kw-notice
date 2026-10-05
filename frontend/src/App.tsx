@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
+import { useChat } from "./chat/chat";
 import { ChatFab } from "./chat/ChatFab";
 import { DigestCard } from "./components/DigestCard";
 import { NoticeList } from "./components/NoticeList";
@@ -33,6 +34,15 @@ export default function App() {
   const digest = useDigest(today);
   const setRead = useSetRead();
   const setStar = useSetStar();
+
+  // 열어 둔 공지를 채팅에 알린다. 채팅 페이지로 가면 이 화면이 사라지므로 비운다.
+  const { setCurrentNotice } = useChat();
+  const openId = detail.data?.id;
+  const openTitle = detail.data?.title;
+  useEffect(() => {
+    setCurrentNotice(openId != null && openTitle ? { id: openId, title: openTitle } : null);
+  }, [openId, openTitle, setCurrentNotice]);
+  useEffect(() => () => setCurrentNotice(null), [setCurrentNotice]);
 
   function select(n: Notice) {
     setParams({ notice: String(n.id) });

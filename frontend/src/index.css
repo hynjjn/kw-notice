@@ -187,3 +187,10 @@ body {
   text-decoration: underline;
   word-break: break-all;
 }
+/* 지금 열려 있는 공지를 가리키는 링크 */
+.md a.md-active {
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-radius: 4px;
+  padding: 0 2px;
+}

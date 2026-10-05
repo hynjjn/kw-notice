@@ -16,7 +16,14 @@ function urlTransform(url: string): string {
  * 모델 출력에 태그가 섞여도 그대로 실리지 않는다.
  * remark-gfm 이 맨 URL 도 링크로 바꿔 준다. 예전 요약은 URL 을 평문으로 담고 있다.
  */
-export function Markdown({ children }: { children: string }) {
+export function Markdown({
+  children,
+  activeNoticeId,
+}: {
+  children: string;
+  /** 지금 열려 있는 공지. 이 공지를 가리키는 링크를 강조한다. */
+  activeNoticeId?: number | null;
+}) {
   return (
     <div className="md">
       <ReactMarkdown
@@ -25,7 +32,18 @@ export function Markdown({ children }: { children: string }) {
         components={{
           a: ({ href, children }) => {
             const notice = href?.match(NOTICE_LINK);
-            if (notice) return <Link to={noticeHref(Number(notice[1]))}>{children}</Link>;
+            if (notice) {
+              const id = Number(notice[1]);
+              return (
+                <Link
+                  to={noticeHref(id)}
+                  className={id === activeNoticeId ? "md-active" : undefined}
+                  title={id === activeNoticeId ? "지금 열려 있는 공지" : undefined}
+                >
+                  {children}
+                </Link>
+              );
+            }
             return (
               <a href={href} target="_blank" rel="noreferrer">
                 {children}

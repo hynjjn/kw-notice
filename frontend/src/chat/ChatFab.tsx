@@ -5,7 +5,15 @@ import { ChatPanel } from "./ChatPanel";
 
 /** 오른쪽 아래 버튼과, 누르면 뜨는 작은 채팅 창. */
 export function ChatFab() {
-  const { floatingOpen, setFloatingOpen, messages, reset } = useChat();
+  const {
+    floatingOpen,
+    setFloatingOpen,
+    messages,
+    reset,
+    currentNotice,
+    attachNotice,
+    setAttachNotice,
+  } = useChat();
 
   useEffect(() => {
     if (!floatingOpen) return;
@@ -64,6 +72,44 @@ export function ChatFab() {
               </button>
             </div>
           </div>
+          {currentNotice &&
+            (attachNotice ? (
+              <div
+                className="flex items-center gap-2 px-4 py-2 text-[12px]"
+                style={{
+                  background: "var(--accent-soft)",
+                  borderBottom: "1px solid var(--line)",
+                  borderLeft: "3px solid var(--accent)",
+                }}
+              >
+                <span className="shrink-0 font-bold" style={{ color: "var(--accent)" }}>
+                  👀 보고 있는 공지
+                </span>
+                <span className="min-w-0 flex-1 truncate" style={{ color: "var(--text)" }} title={currentNotice.title}>
+                  {currentNotice.title}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setAttachNotice(false)}
+                  className="shrink-0 px-1"
+                  style={{ color: "var(--muted)" }}
+                  aria-label="이 공지를 질문에서 빼기"
+                  title="이 공지를 질문에서 빼기"
+                >
+                  ✕
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setAttachNotice(true)}
+                className="truncate px-4 py-2 text-left text-[12px]"
+                style={{ borderBottom: "1px solid var(--line)", color: "var(--muted)" }}
+                title={currentNotice.title}
+              >
+                + 보고 있는 공지 기준으로 묻기: {currentNotice.title}
+              </button>
+            ))}
           <ChatPanel compact />
         </div>
       )}

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { api } from "../api/client";
-import { ChatContext, type ChatMessage } from "./chat";
+import { ChatContext, type ChatMessage, type NoticeContext } from "./chat";
 
 let nextId = 1;
 
@@ -14,6 +14,22 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [pending, setPending] = useState(false);
   const [floatingOpen, setFloatingOpen] = useState(false);
+  const [currentNotice, setCurrentNoticeState] = useState<NoticeContext | null>(null);
+  const [attachNotice, setAttachNotice] = useState(true);
+
+  const setCurrentNotice = useCallback((notice: NoticeContext | null) => {
+    setCurrentNoticeState((prev) => {
+      // 다른 공지를 열면 "이 공지 기준" 을 다시 켠다. 제목만 다시 들어온 경우는 그대로 둔다.
+      if (prev?.id !== notice?.id) setAttachNotice(true);
+      return notice;
+    });
+  }, []);
+
+  const contextNotice = attachNotice ? currentNotice : null;
+  const contextRef = useRef<NoticeContext | null>(null);
+  useEffect(() => {
+    contextRef.current = contextNotice;
+  }, [contextNotice]);
   // 답을 기다리는 동안 "새 대화"를 누르면 늦게 온 답이 새 대화에 끼어든다.
   // 대화마다 번호를 매겨 번호가 바뀌었으면 버린다.
   const conversation = useRef(0);
@@ -27,14 +43,23 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     const trimmed = text.trim();
     if (!trimmed) return;
 
-    const question: ChatMessage = { id: nextId++, role: "user", text: trimmed };
+    const question: ChatMessage = {
+      id: nextId++,
+      role: "user",
+      text: trimmed,
+      notice: contextRef.current ?? undefined,
+    };
     const history = [...latest.current, question];
     setMessages(history);
     setPending(true);
 
     const mine = conversation.current;
     api
-      .chat(history.filter((m) => !m.error).map(({ role, text }) => ({ role, text })))
+      .chat(
+        history
+          .filter((m) => !m.error)
+          .map(({ role, text, notice }) => ({ role, text, notice_id: notice?.id })),
+      )
       .then(
         (res): ChatMessage => ({
           id: nextId++,
@@ -63,8 +88,19 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ messages, pending, send, reset, floatingOpen, setFloatingOpen }),
-    [messages, pending, send, reset, floatingOpen],
+    () => ({
+      messages,
+      pending,
+      send,
+      reset,
+      floatingOpen,
+      setFloatingOpen,
+      currentNotice,
+      setCurrentNotice,
+      attachNotice,
+      setAttachNotice,
+    }),
+    [messages, pending, send, reset, floatingOpen, currentNotice, setCurrentNotice, attachNotice],
   );
   return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;
 }

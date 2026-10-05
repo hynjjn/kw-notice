@@ -49,7 +49,7 @@ export const api = {
   summarize: (id: number) =>
     request<NoticeDetail>(`/notices/${id}/summary`, { method: "POST" }),
   stats: () => request<Stats>("/stats"),
-  chat: (messages: { role: "user" | "assistant"; text: string }[]) =>
+  chat: (messages: { role: "user" | "assistant"; text: string; notice_id?: number }[]) =>
     request<ChatReply>("/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
