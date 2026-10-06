@@ -5,6 +5,8 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import App from "./App";
 import { ChatProvider } from "./chat/ChatProvider";
 import { ChatPage } from "./pages/ChatPage";
+// 쓰는 글자가 든 조각만 받는 dynamic subset 판. 한글 전체(수 MB)를 한 번에 받지 않는다.
+import "pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css";
 import "./index.css";
 
 const queryClient = new QueryClient({

@@ -1,4 +1,5 @@
 import type { Stats } from "../api/types";
+import { filterToHash } from "../filterHash";
 
 export type Filter = {
   source?: string;
@@ -12,27 +13,29 @@ export type Filter = {
 interface Props {
   stats?: Stats;
   filter: Filter;
-  onChange: (f: Filter) => void;
 }
 
 function same(a: Filter, b: Filter) {
   return JSON.stringify(a) === JSON.stringify(b);
 }
 
-export function Sidebar({ stats, filter, onChange }: Props) {
+export function Sidebar({ stats, filter }: Props) {
+  // 버튼이 아니라 링크다. 고르면 주소의 # 만 바뀌고, 열어 둔 공지(?notice=)는 그대로 남는다.
+  // 가운데 클릭으로 새 탭에 열 수도 있다.
   const item = (label: string, icon: string, next: Filter, count?: number) => (
-    <button
+    <a
       key={label}
+      href={filterToHash(next)}
       className="nav-btn"
       data-active={same(filter, next)}
-      onClick={() => onChange(next)}
+      aria-current={same(filter, next) ? "page" : undefined}
     >
       <span className="w-4.5 text-center">{icon}</span>
       <span className="truncate">{label}</span>
       {count !== undefined && (
-        <span className="ml-auto text-xs font-semibold">{count}</span>
+        <span className="ml-auto text-xs font-semibold tabular-nums">{count}</span>
       )}
-    </button>
+    </a>
   );
 
   const heading = (text: string) => (

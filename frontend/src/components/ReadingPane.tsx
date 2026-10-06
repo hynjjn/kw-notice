@@ -27,7 +27,7 @@ function Meta({ notice }: { notice: NoticeDetail }) {
       ))}
       <a
         className="ml-auto"
-        style={{ color: "var(--unread)" }}
+        style={{ color: "var(--link)" }}
         href={notice.url}
         target="_blank"
         rel="noreferrer"
@@ -55,7 +55,7 @@ function SummarizeButton({ notice }: { notice: NoticeDetail }) {
         style={{
           background: "var(--ai-bg)",
           border: "1px solid var(--ai-line)",
-          color: "var(--unread)",
+          color: "var(--ai-text)",
         }}
       >
         {pending ? "요약하는 중..." : "✨ AI 요약 만들기"}
@@ -144,7 +144,7 @@ export function ReadingPane({
           className="my-4 rounded-2xl px-4 py-3.5"
           style={{ background: "var(--ai-bg)", border: "1px solid var(--ai-line)" }}
         >
-          <h4 className="mb-1.5 text-xs font-extrabold" style={{ color: "var(--unread)" }}>
+          <h4 className="mb-1.5 text-xs font-extrabold" style={{ color: "var(--ai-text)" }}>
             ✨ AI 요약 {notice.attachment_count > 0 && "(첨부파일 포함)"}
           </h4>
           <Markdown>{notice.ai_summary}</Markdown>

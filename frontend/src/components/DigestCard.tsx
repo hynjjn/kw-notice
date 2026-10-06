@@ -6,11 +6,11 @@ export function DigestCard({ digest, date }: { digest?: Digest; date: string }) 
   return (
     <div
       className="m-3 rounded-2xl px-4 py-3.5"
-      style={{ background: "var(--digest-bg)", border: "1px solid var(--digest-line)" }}
+      style={{ background: "var(--ai-bg)", border: "1px solid var(--ai-line)" }}
     >
       <h3
         className="mb-2 flex items-center gap-1.5 text-[13px] font-extrabold"
-        style={{ color: "var(--accent)" }}
+        style={{ color: "var(--ai-text)" }}
       >
         ✨ {date} 요약
       </h3>

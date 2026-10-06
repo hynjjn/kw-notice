@@ -1,63 +1,64 @@
 @import "tailwindcss";
 
-/* mockup 에서 쓰던 토큰을 그대로 옮겼다.
-   런타임에 테마를 바꿔야 하므로 Tailwind 의 색 대신 CSS 변수를 쓴다. */
+/* 색 토큰. 런타임에 테마를 바꿔야 하므로 Tailwind 의 색 대신 CSS 변수를 쓴다.
+
+   강조색은 학교 버건디 하나뿐이다. "지금 고른 것"(활성 메뉴, 열린 공지, 고정 칩,
+   안 읽음 점, 마감)에만 쓴다. AI 가 만든 것(요약, 채팅, 브리핑)은 차분한 보라 하나로
+   묶어서 사람이 쓴 공지와 구분한다. 회색은 버건디와 어울리게 따뜻한 돌색 계열이다. */
 :root {
-  --bg: #f6f8fc;
+  --bg: #f7f5f2;
   --surface: #ffffff;
-  --line: #e3e6ea;
-  --line-soft: #f1f3f4;
-  --text: #1f1f1f;
-  --body-text: #3c4043;
-  --muted: #5f6368;
-  --faint: #9aa0a6;
-  --accent: #8b1a1a;
+  --line: #e7e2dc;
+  --line-soft: #f2eee9;
+  --text: #1c1917;
+  --body-text: #3f3a36;
+  --muted: #6b635c;
+  --faint: #a39b93;
+  --accent: #8a1c2b;
   --accent-fg: #ffffff;
-  --accent-soft: #fdecec;
-  --star: #f4b400;
-  --star-off: #c6cad0;
-  --unread: #0b57d0;
-  --hover: #f7f9fd;
-  --nav-hover: #eaeef6;
-  --sel: #e8f0fe;
-  --search-bg: #eaeef6;
-  --chip-bg: #eef1f5;
-  --chip-text: #4a5157;
-  --digest-bg: linear-gradient(135deg, #fdecec, #eef2ff);
-  --digest-line: #f0d6d6;
-  --ai-bg: #f1f5ff;
-  --ai-line: #d9e2ff;
-  --ok-bg: #e6f4ea;
-  --ok-text: #137333;
+  --accent-soft: #f6e8e9;
+  --link: #8a1c2b;
+  --star: #d99a1e;
+  --star-off: #cfc8c0;
+  --hover: #faf8f6;
+  --nav-hover: #efebe6;
+  --sel: #f6e8e9;
+  --search-bg: #efebe6;
+  --chip-bg: #efebe6;
+  --chip-text: #57504a;
+  --ai-bg: #f3f1fa;
+  --ai-line: #e1dcf0;
+  --ai-text: #5b4f9a;
+  --ok-bg: #e8f1e8;
+  --ok-text: #2f6b3b;
 }
 
 :root[data-theme="dark"] {
-  --bg: #16181c;
-  --surface: #1e2025;
-  --line: #33363c;
-  --line-soft: #2a2d33;
-  --text: #e8eaed;
-  --body-text: #c3c7cc;
-  --muted: #9aa0a6;
-  --faint: #7c8085;
-  --accent: #ff9a9a;
-  --accent-fg: #2a1212;
-  --accent-soft: #3a2224;
-  --star: #f4c430;
-  --star-off: #55595f;
-  --unread: #8ab4f8;
-  --hover: #25282e;
-  --nav-hover: #272a30;
-  --sel: #2b3648;
-  --search-bg: #2a2d33;
-  --chip-bg: #2e3138;
-  --chip-text: #c3c7cc;
-  --digest-bg: linear-gradient(135deg, #3a2224, #232a44);
-  --digest-line: #46323a;
-  --ai-bg: #1e2740;
-  --ai-line: #2f3d5e;
-  --ok-bg: #1c3325;
-  --ok-text: #81c995;
+  --bg: #161413;
+  --surface: #1f1c1a;
+  --line: #34302c;
+  --line-soft: #2a2623;
+  --text: #ece7e2;
+  --body-text: #c9c2bb;
+  --muted: #9d958d;
+  --faint: #756e67;
+  --accent: #e8939c;
+  --accent-fg: #2a1215;
+  --accent-soft: #3a2226;
+  --link: #e8939c;
+  --star: #e5b04a;
+  --star-off: #4a4540;
+  --hover: #24211f;
+  --nav-hover: #2a2623;
+  --sel: #3a2226;
+  --search-bg: #2a2623;
+  --chip-bg: #2e2a27;
+  --chip-text: #c9c2bb;
+  --ai-bg: #24212e;
+  --ai-line: #3a3550;
+  --ai-text: #b3a8ec;
+  --ok-bg: #1d2b20;
+  --ok-text: #8fc79a;
 }
 
 html,
@@ -70,8 +71,10 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
-  font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo",
-    Pretendard, "Segoe UI", sans-serif;
+  /* 한글과 라틴 글자를 한 글꼴로 맞춘다. 시스템 글꼴로 섞으면 Windows 에서
+     Segoe UI 와 맑은 고딕이 짝지어져 굵기와 높이가 어긋난다. */
+  font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont,
+    "Apple SD Gothic Neo", "Segoe UI", sans-serif;
   font-size: 14px;
   line-height: 1.5;
 }
@@ -157,7 +160,7 @@ body {
   border-radius: 8px;
 }
 .notice-body a {
-  color: var(--unread);
+  color: var(--link);
   text-decoration: underline;
 }
 .notice-body table {
@@ -217,7 +220,7 @@ body {
   color: var(--text);
 }
 .md a {
-  color: var(--unread);
+  color: var(--link);
   text-decoration: underline;
   word-break: break-all;
 }

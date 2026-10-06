@@ -31,7 +31,7 @@ export function ChatPage() {
               새 대화
             </button>
           )}
-          <Link to="/" style={{ color: "var(--unread)" }}>
+          <Link to="/" style={{ color: "var(--link)" }}>
             ← 공지로
           </Link>
           <ThemeToggle />

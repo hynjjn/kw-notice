@@ -1,11 +1,19 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./api/client";
 import type { NoticeQuery } from "./api/types";
 
-export function useNotices(params: NoticeQuery) {
-  return useQuery({
+const PAGE_SIZE = 50;
+
+/** 목록은 50건씩 받는다. 끝에 다가가면 NoticeList 가 다음 쪽을 부른다. */
+export function useNotices(params: Omit<NoticeQuery, "limit" | "offset">) {
+  return useInfiniteQuery({
     queryKey: ["notices", params],
-    queryFn: () => api.notices(params),
+    queryFn: ({ pageParam }) => api.notices({ ...params, limit: PAGE_SIZE, offset: pageParam }),
+    initialPageParam: 0,
+    getNextPageParam: (last) => {
+      const next = last.offset + last.items.length;
+      return last.items.length > 0 && next < last.total ? next : undefined;
+    },
   });
 }
 

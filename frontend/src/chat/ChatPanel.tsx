@@ -26,7 +26,7 @@ function AnswerSkeleton() {
       className="flex w-[75%] flex-col gap-2 self-start rounded-2xl rounded-bl-md px-3.5 py-3"
       style={{ background: "var(--ai-bg)", border: "1px solid var(--ai-line)" }}
     >
-      <span className="text-[12px] font-bold" style={{ color: "var(--unread)" }}>
+      <span className="text-[12px] font-bold" style={{ color: "var(--ai-text)" }}>
         ✨ 생각 중...
       </span>
       <span className="skeleton-line w-full" />
