@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { Markdown } from "../components/Markdown";
 import { noticeHref } from "../links";
 import { useChat } from "./chat";
+import { MemoryPanel } from "./MemoryPanel";
 
 const SUGGESTIONS = [
   "이번 주에 마감되는 장학금 알려줘",
@@ -38,7 +39,7 @@ function AnswerSkeleton() {
 
 /** 대화 목록과 입력창. 떠 있는 창과 전용 페이지가 같이 쓴다. */
 export function ChatPanel({ compact = false }: { compact?: boolean }) {
-  const { messages, pending, send, currentNotice, attachNotice } = useChat();
+  const { messages, pending, send, currentNotice, attachNotice, memoryOpen, setMemoryOpen } = useChat();
   const activeId = currentNotice?.id ?? null;
   const suggestions = currentNotice && attachNotice ? NOTICE_SUGGESTIONS : SUGGESTIONS;
   const [draft, setDraft] = useState("");
@@ -62,6 +63,8 @@ export function ChatPanel({ compact = false }: { compact?: boolean }) {
       submit();
     }
   }
+
+  if (memoryOpen) return <MemoryPanel compact={compact} />;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -125,6 +128,22 @@ export function ChatPanel({ compact = false }: { compact?: boolean }) {
                   >
                     {m.error ? m.text : <Markdown activeNoticeId={activeId}>{m.text}</Markdown>}
                   </div>
+                  {((m.remembered?.length ?? 0) > 0 || (m.forgotten?.length ?? 0) > 0) && (
+                    <button
+                      type="button"
+                      onClick={() => setMemoryOpen(true)}
+                      className="self-start text-left text-[11.5px]"
+                      style={{ color: "var(--muted)" }}
+                      title="기억 목록 보기"
+                    >
+                      {m.remembered?.map((t) => <div key={`+${t}`}>🧠 기억함: {t}</div>)}
+                      {m.forgotten?.map((t) => (
+                        <div key={`-${t}`}>
+                          🧠 잊음: <s>{t}</s>
+                        </div>
+                      ))}
+                    </button>
+                  )}
                   {m.notices && m.notices.length > 0 && (
                     <div className="flex flex-wrap gap-1.5">
                       {m.notices.map((n) => (

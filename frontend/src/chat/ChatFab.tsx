@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useChat } from "./chat";
 import { ChatPanel } from "./ChatPanel";
+import { MemoryToggle } from "./MemoryPanel";
 
 /** 오른쪽 아래 버튼과, 누르면 뜨는 작은 채팅 창. */
 export function ChatFab() {
@@ -41,6 +42,7 @@ export function ChatFab() {
               ✨ AI 채팅
             </span>
             <div className="ml-auto flex items-center gap-1 text-[12.5px]">
+              <MemoryToggle className="rounded-lg px-2 py-1" />
               {messages.length > 0 && (
                 <button
                   type="button"

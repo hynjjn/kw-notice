@@ -1,5 +1,5 @@
 import { createContext, useContext } from "react";
-import type { ChatNoticeRef } from "../api/types";
+import type { ChatNoticeRef, Memory } from "../api/types";
 
 /** 화면에 열려 있는 공지. 떠 있는 창의 질문에 맥락으로 붙는다. */
 export type NoticeContext = { id: number; title: string };
@@ -12,6 +12,9 @@ export type ChatMessage = {
   notices?: ChatNoticeRef[];
   /** 이 질문을 보낼 때 열려 있던 공지. 사용자 메시지에만 붙는다. */
   notice?: NoticeContext;
+  /** 이 답에서 새로 저장하거나 지운 기억. 답에만 붙는다. */
+  remembered?: string[];
+  forgotten?: string[];
   /** 요청이 실패해서 붙인 안내문. 다음 요청의 대화 기록에는 싣지 않는다. */
   error?: boolean;
 };
@@ -29,6 +32,12 @@ type ChatState = {
   /** 다음 질문에 열린 공지를 붙일지. 공지를 바꾸면 다시 켜진다. */
   attachNotice: boolean;
   setAttachNotice: (attach: boolean) => void;
+  /** 새 대화를 시작해도 남는 기억. 채팅이 저장하고, 사용자는 지울 수 있다. */
+  memories: Memory[];
+  deleteMemory: (id: number) => void;
+  /** 대화 대신 기억 목록을 보여 줄지. 떠 있는 창과 전용 페이지가 같이 쓴다. */
+  memoryOpen: boolean;
+  setMemoryOpen: (open: boolean) => void;
 };
 
 export const ChatContext = createContext<ChatState | null>(null);

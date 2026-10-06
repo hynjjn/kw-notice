@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { api } from "../api/client";
+import type { Memory } from "../api/types";
 import { ChatContext, type ChatMessage, type NoticeContext } from "./chat";
 
 let nextId = 1;
@@ -9,6 +10,7 @@ let nextId = 1;
  * 넓혀도 대화가 이어져야 하기 때문이다.
  *
  * 서버는 대화를 저장하지 않는다. 보낼 때마다 지금까지의 대화를 통째로 싣는다.
+ * 대화를 넘어 남는 것은 서버의 기억(memories)뿐이다.
  */
 export function ChatProvider({ children }: { children: ReactNode }) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -16,6 +18,18 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const [floatingOpen, setFloatingOpen] = useState(false);
   const [currentNotice, setCurrentNoticeState] = useState<NoticeContext | null>(null);
   const [attachNotice, setAttachNotice] = useState(true);
+  const [memories, setMemories] = useState<Memory[]>([]);
+  const [memoryOpen, setMemoryOpen] = useState(false);
+
+  const loadMemories = useCallback(() => {
+    // 기억 목록을 못 받아도 채팅은 된다. 목록만 비어 보인다.
+    api.memories().then(setMemories, () => {});
+  }, []);
+  useEffect(loadMemories, [loadMemories]);
+
+  const deleteMemory = useCallback((id: number) => {
+    api.deleteMemory(id).then(setMemories, () => loadMemories());
+  }, [loadMemories]);
 
   const setCurrentNotice = useCallback((notice: NoticeContext | null) => {
     setCurrentNoticeState((prev) => {
@@ -61,12 +75,17 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           .map(({ role, text, notice }) => ({ role, text, notice_id: notice?.id })),
       )
       .then(
-        (res): ChatMessage => ({
-          id: nextId++,
-          role: "assistant",
-          text: res.reply,
-          notices: res.notices,
-        }),
+        (res): ChatMessage => {
+          if (res.remembered.length > 0 || res.forgotten.length > 0) loadMemories();
+          return {
+            id: nextId++,
+            role: "assistant",
+            text: res.reply,
+            notices: res.notices,
+            remembered: res.remembered,
+            forgotten: res.forgotten,
+          };
+        },
         (err: Error): ChatMessage => ({
           id: nextId++,
           role: "assistant",
@@ -79,7 +98,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         setMessages((prev) => [...prev, reply]);
         setPending(false);
       });
-  }, []);
+  }, [loadMemories]);
 
   const reset = useCallback(() => {
     conversation.current += 1;
@@ -99,8 +118,24 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       setCurrentNotice,
       attachNotice,
       setAttachNotice,
+      memories,
+      deleteMemory,
+      memoryOpen,
+      setMemoryOpen,
     }),
-    [messages, pending, send, reset, floatingOpen, currentNotice, setCurrentNotice, attachNotice],
+    [
+      messages,
+      pending,
+      send,
+      reset,
+      floatingOpen,
+      currentNotice,
+      setCurrentNotice,
+      attachNotice,
+      memories,
+      deleteMemory,
+      memoryOpen,
+    ],
   );
   return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;
 }

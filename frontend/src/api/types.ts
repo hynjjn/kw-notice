@@ -96,6 +96,16 @@ export interface ChatNoticeRef {
 export interface ChatReply {
   reply: string;
   notices: ChatNoticeRef[];
+  /** 이번 답에서 새로 저장하거나 지운 기억. */
+  remembered: string[];
+  forgotten: string[];
+}
+
+/** AI 채팅이 대화를 넘어 기억하는 사용자 정보. */
+export interface Memory {
+  id: number;
+  content: string;
+  created_at: string;
 }
 
 export interface RefreshStatus {

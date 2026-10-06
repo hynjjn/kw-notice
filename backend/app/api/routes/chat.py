@@ -9,10 +9,10 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_session
+from app.api.deps import get_current_user, get_session
 from app.chat.service import ChatTurn, answer
 from app.config import settings
-from app.models import Notice
+from app.models import Notice, User
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
@@ -38,10 +38,17 @@ class ChatNoticeRef(BaseModel):
 class ChatResponse(BaseModel):
     reply: str
     notices: list[ChatNoticeRef]
+    # 이번 답에서 새로 저장하거나 지운 기억.
+    remembered: list[str]
+    forgotten: list[str]
 
 
 @router.post("", response_model=ChatResponse)
-def chat(body: ChatRequest, session: Session = Depends(get_session)) -> ChatResponse:
+def chat(
+    body: ChatRequest,
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+) -> ChatResponse:
     """공지에 대해 묻고 답한다. Gemini 가 검색 도구를 몇 번 부르므로 수 초 걸린다."""
     if body.messages[-1].role != "user":
         raise HTTPException(status_code=422, detail="마지막 메시지는 사용자 질문이어야 한다")
@@ -64,7 +71,7 @@ def chat(body: ChatRequest, session: Session = Depends(get_session)) -> ChatResp
     ]
 
     try:
-        result = answer(session, turns)
+        result = answer(session, user.id, turns)
     except genai_errors.APIError as exc:
         raise HTTPException(status_code=502, detail=f"AI 응답 실패: {exc}") from exc
 
@@ -78,4 +85,9 @@ def chat(body: ChatRequest, session: Session = Depends(get_session)) -> ChatResp
         for nid in result.notice_ids
         if (n := found.get(nid))
     ]
-    return ChatResponse(reply=result.reply, notices=refs)
+    return ChatResponse(
+        reply=result.reply,
+        notices=refs,
+        remembered=result.remembered,
+        forgotten=result.forgotten,
+    )

@@ -223,6 +223,22 @@ class UserNoticeState(Base):
     is_muted: Mapped[bool] = mapped_column(Boolean, default=False)
 
 
+class UserMemory(Base):
+    """AI 채팅이 대화를 넘어 기억하는 사용자 정보. 한 행에 사실 하나다.
+
+    대화 기록은 서버에 남기지 않는다. 학과, 학번처럼 공지를 고르는 데 쓸 사실만
+    여기 남겨 두고, 질문할 때마다 프롬프트에 붙인다.
+    """
+
+    __tablename__ = "user_memories"
+    __table_args__ = (Index("ix_memory_user", "user_id"),)
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    content: Mapped[str] = mapped_column(String(200))
+    created_at: Mapped[dt.datetime] = _ts()
+
+
 class DailyDigest(Base):
     """하루치 요약. user_id 가 null 이면 전체 공용 요약."""
 

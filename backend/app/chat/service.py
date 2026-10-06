@@ -21,7 +21,7 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.crawler.http import make_client as make_http_client
 from app.extract import vision
-from app.models import Attachment, CrawlState, ExtractState, Notice
+from app.models import Attachment, CrawlState, ExtractState, Notice, UserMemory
 from app.summarize import llm
 
 log = logging.getLogger(__name__)
@@ -33,6 +33,9 @@ MAX_BODY_CHARS = 6_000
 MAX_ATTACHMENT_CHARS = 4_000
 # 대화가 길어지면 앞부분은 버린다. 토큰이 대화 길이에 비례해 늘어나기 때문이다.
 MAX_HISTORY = 20
+# 메모리는 질문마다 프롬프트에 통째로 붙는다. 많아지면 그만큼 매번 비싸진다.
+MAX_MEMORIES = 30
+MAX_MEMORY_CHARS = 200
 
 SYSTEM = """당신은 광운대학교 학생의 공지사항 도우미입니다. 오늘은 {today}({weekday})입니다.
 
@@ -54,7 +57,19 @@ SYSTEM = """당신은 광운대학교 학생의 공지사항 도우미입니다.
 - 질문 앞에 [지금 보고 있는 공지: ...] 가 붙어 있으면 학생이 그 공지를 화면에 열어 둔 채 묻는 것입니다.
 - "이 공지", "이거", "여기", "마감 언제야?"처럼 대상이 빠진 질문은 그 공지를 뜻합니다. get_notice 로 읽고 답합니다.
 - 비슷한 공지를 찾는 질문이라도 그 공지와 관련이 있으면 그 공지를 먼저 다루고 나머지를 뒤에 둡니다.
-- 질문이 그 공지와 무관하면 신경 쓰지 않고 평소처럼 답합니다."""
+- 질문이 그 공지와 무관하면 신경 쓰지 않고 평소처럼 답합니다.
+
+학생에 대한 기억:
+- 학생이 자기 학과, 학번, 학년, 신분(휴학, 복학, 국제학생, 편입 등), 관심 분야, 공지를 고르는 데 쓸
+  사정을 말하면 remember 로 저장합니다. 이미 아래 목록에 있는 내용은 다시 저장하지 않습니다.
+- 공지를 고르는 데 쓸모없는 잡담, 다른 사람에 대한 이야기(친구가 국제학생이다 등), 한 번 묻고 말 내용은 저장하지 않습니다.
+- 학년은 해가 바뀌면 틀려집니다. 학생이 학번을 말했으면 학번으로 저장하고, 학년만 말했으면 "{year}년 기준 3학년"처럼 연도를 붙입니다.
+  "다음 학기", "올해"처럼 오늘을 기준으로 한 때도 "2027년 1학기"처럼 날짜로 바꿔 저장합니다.
+- 저장한 내용이 바뀌었거나 틀렸다고 하면 forget 으로 옛 기억을 지우고, 새 내용이 있으면 remember 로 저장합니다.
+- 기억은 공지의 우선순위를 정하는 데 씁니다. 학과나 학년이 맞는 공지를 앞에 두되, 전체 학생 대상 공지를 빼지 않습니다.
+- 기억을 저장하거나 지웠으면 답 끝에 한 줄로 짧게 알립니다.
+
+{memories}"""
 
 WEEKDAYS = "월화수목금토일"
 _NOTICE_LINK = re.compile(r"\(notice:(\d+)\)")
@@ -78,6 +93,9 @@ class ChatTurn:
 class ChatResult:
     reply: str
     notice_ids: list[int] = field(default_factory=list)
+    # 이번 답에서 새로 저장하거나 지운 기억. 화면에 바로 보여 준다.
+    remembered: list[str] = field(default_factory=list)
+    forgotten: list[str] = field(default_factory=list)
 
 
 def _squash(column):
@@ -88,13 +106,31 @@ def _clip(text: str, limit: int) -> str:
     return text if len(text) <= limit else text[:limit] + f"\n...(이하 {len(text) - limit:,}자 생략)"
 
 
-class NoticeTools:
-    """모델이 부르는 도구. 세션과 '이번 답에서 본 공지'를 들고 다닌다."""
+def load_memories(session: Session, user_id: int) -> list[UserMemory]:
+    return list(
+        session.scalars(
+            select(UserMemory).where(UserMemory.user_id == user_id).order_by(UserMemory.id)
+        )
+    )
 
-    def __init__(self, session: Session, focus_id: int | None = None):
+
+def _memory_section(memories: list[UserMemory]) -> str:
+    if not memories:
+        return "지금 기억하고 있는 것: 없음"
+    lines = "\n".join(f"- (id {m.id}) {m.content}" for m in memories)
+    return f"지금 기억하고 있는 것:\n{lines}"
+
+
+class NoticeTools:
+    """모델이 부르는 도구. 세션과 '이번 답에서 본 공지', 바꾼 기억을 들고 다닌다."""
+
+    def __init__(self, session: Session, user_id: int, focus_id: int | None = None):
         self.session = session
+        self.user_id = user_id
         self.focus_id = focus_id
         self.seen: list[int] = []
+        self.remembered: list[str] = []
+        self.forgotten: list[str] = []
 
     def __deepcopy__(self, memo) -> "NoticeTools":
         # SDK 가 config 를 deepcopy 하면서 도구(이 객체의 메서드)까지 복사한다.
@@ -209,6 +245,50 @@ class NoticeTools:
             "ai_summary": n.ai_summary,
         }
 
+    def remember(self, fact: str) -> dict:
+        """학생에 대한 사실 하나를 다음 대화에서도 쓰도록 저장한다.
+
+        Args:
+            fact: 짧은 한 문장. 예: "소프트웨어학부 2022학번이다", "2026년 2학기 휴학을 고려 중이다".
+                학생을 주어로 하되 주어는 생략한다.
+
+        Returns:
+            저장한 기억의 id, 또는 저장하지 못한 이유.
+        """
+        fact = " ".join(fact.split())[:MAX_MEMORY_CHARS]
+        if not fact:
+            return {"error": "빈 내용은 저장하지 않습니다"}
+        memories = load_memories(self.session, self.user_id)
+        if any(m.content == fact for m in memories):
+            return {"error": "이미 기억하고 있습니다"}
+        if len(memories) >= MAX_MEMORIES:
+            return {"error": f"기억은 {MAX_MEMORIES}개까지입니다. 덜 중요한 것을 forget 으로 지운 뒤 저장하세요"}
+        memory = UserMemory(user_id=self.user_id, content=fact)
+        self.session.add(memory)
+        self.session.commit()
+        self.remembered.append(fact)
+        log.info("chat remember %r", fact)
+        return {"id": memory.id, "saved": fact}
+
+    def forget(self, memory_id: int) -> dict:
+        """저장해 둔 기억 하나를 지운다. 바뀌었거나 틀린 기억에 쓴다.
+
+        Args:
+            memory_id: 프롬프트의 기억 목록에 적힌 id.
+
+        Returns:
+            지운 기억, 또는 지우지 못한 이유.
+        """
+        memory = self.session.get(UserMemory, memory_id)
+        if memory is None or memory.user_id != self.user_id:
+            return {"error": f"id {memory_id} 기억이 없습니다"}
+        content = memory.content
+        self.session.delete(memory)
+        self.session.commit()
+        self.forgotten.append(content)
+        log.info("chat forget %r", content)
+        return {"deleted": content}
+
     def _ensure_image_text(self, n: Notice) -> None:
         """본문 이미지 속 글자가 아직 없으면 지금 옮겨 적고 저장한다.
 
@@ -226,13 +306,19 @@ class NoticeTools:
             log.warning("채팅 중 이미지 글자 추출 실패 %s: %s", n.id, exc)
 
 
-def answer(session: Session, history: list[ChatTurn]) -> ChatResult:
-    """대화 기록을 받아 마지막 질문에 답한다. 대화는 서버에 저장하지 않는다."""
+def answer(session: Session, user_id: int, history: list[ChatTurn]) -> ChatResult:
+    """대화 기록을 받아 마지막 질문에 답한다. 대화는 저장하지 않고, 기억만 저장한다."""
     today = dt.date.today()
     turns = history[-MAX_HISTORY:]
     # 마지막 질문을 보낼 때 열려 있던 공지가 이번 답의 중심이다.
     focus_id = turns[-1].notice_id
-    tools = NoticeTools(session, focus_id)
+    tools = NoticeTools(session, user_id, focus_id)
+    system = SYSTEM.format(
+        today=today,
+        weekday=WEEKDAYS[today.weekday()],
+        year=today.year,
+        memories=_memory_section(load_memories(session, user_id)),
+    )
 
     past = [
         types.Content(
@@ -249,8 +335,8 @@ def answer(session: Session, history: list[ChatTurn]) -> ChatResult:
         model=settings.gemini_model,
         history=past,
         config=types.GenerateContentConfig(
-            system_instruction=SYSTEM.format(today=today, weekday=WEEKDAYS[today.weekday()]),
-            tools=[tools.search_notices, tools.get_notice],
+            system_instruction=system,
+            tools=[tools.search_notices, tools.get_notice, tools.remember, tools.forget],
             # SDK 가 도구 호출과 결과 전달을 대신 돈다. 횟수만 묶어 둔다.
             automatic_function_calling=types.AutomaticFunctionCallingConfig(
                 maximum_remote_calls=MAX_TOOL_CALLS
@@ -266,4 +352,9 @@ def answer(session: Session, history: list[ChatTurn]) -> ChatResult:
     ordered = list(dict.fromkeys(linked + tools.seen))
     # 열어 둔 공지가 답에 쓰였으면 바로가기 맨 앞에 둔다. 쓰이지 않았으면 끼워 넣지 않는다.
     ordered.sort(key=lambda nid: nid != focus_id)
-    return ChatResult(reply=reply, notice_ids=ordered)
+    return ChatResult(
+        reply=reply,
+        notice_ids=ordered,
+        remembered=tools.remembered,
+        forgotten=tools.forgotten,
+    )

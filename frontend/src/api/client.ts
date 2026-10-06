@@ -1,6 +1,7 @@
 import type {
   ChatReply,
   Digest,
+  Memory,
   NoticeDetail,
   NoticeList,
   NoticeQuery,
@@ -65,6 +66,9 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ messages }),
     }),
+  memories: () => request<Memory[]>("/memories"),
+  /** 지우고 남은 기억을 돌려준다. */
+  deleteMemory: (id: number) => request<Memory[]>(`/memories/${id}`, { method: "DELETE" }),
   digest: (date: string) => request<Digest>(`/digests/${date}`),
   setRead: (id: number, value: boolean) =>
     request<void>(`/notices/${id}/read?value=${value}`, { method: "PUT" }),

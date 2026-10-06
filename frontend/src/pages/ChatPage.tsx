@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { useChat } from "../chat/chat";
 import { ChatPanel } from "../chat/ChatPanel";
+import { MemoryToggle } from "../chat/MemoryPanel";
 import { ThemeToggle } from "../components/ThemeToggle";
 
 /** 긴 대화를 위한 전용 페이지. 떠 있는 창과 대화를 공유한다. */
@@ -26,6 +27,7 @@ export function ChatPage() {
           / AI 채팅
         </span>
         <div className="ml-auto flex items-center gap-3 text-[13px]">
+          <MemoryToggle />
           {messages.length > 0 && (
             <button type="button" onClick={reset} style={{ color: "var(--muted)" }}>
               새 대화
