@@ -96,13 +96,11 @@ Gemini 로 요약한다(`POST /api/notices/{id}/summary`). 키가 없으면 버�
 
 ## 배포 계획
 
-프론트는 `npm run build` 결과(`dist/`)를 S3 에 올리고 CloudFront 를 붙인다.
-CloudFront 에서 `/api/*` 만 백엔드 오리진으로 보내면 브라우저 입장에서 같은
-origin 이 되어 CORS 가 사라진다. SPA 라우팅 때문에 404 를 `index.html` 로
-돌려주는 custom error response 가 필요하다.
+KLAS 연동과 로컬 모델을 넣기 위해 Electron 데스크톱 앱으로 옮긴다. 서버(FastAPI, Postgres)는
+공지 수집, 검색, LLM 중계를 맡고, 사용자 인증 정보와 개인 데이터는 사용자 PC에 둔다.
+v1은 Electron과 Gemini API, v2는 Ollama 로컬 모델, 모바일은 그다음이다.
 
-프론트 코드에는 API 주소가 박혀 있지 않다. 개발에서는 Vite proxy 가, 배포에서는
-CloudFront 가 같은 일을 한다.
+구조는 [docs/architecture.md](docs/architecture.md), 결정마다의 이유는 [docs/adr/](docs/adr/) 에 있다.
 
 ## 자세한 내용
 
