@@ -77,6 +77,40 @@ body {
 }
 
 @layer components {
+  .preview-btn {
+    border-radius: 0.6rem;
+    padding: 0.25rem 0.6rem;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  .preview-btn:hover:not(:disabled) {
+    background: var(--nav-hover);
+    color: var(--text);
+  }
+  .preview-btn:disabled {
+    opacity: 0.35;
+  }
+
+  /* 문서 라이브러리가 만든 DOM 은 종이 위에 그린 것처럼 흰 바탕을 깐다. */
+  .office-view {
+    background: var(--line-soft);
+  }
+  .office-pptx {
+    padding: 1rem;
+  }
+  .sheet-view table {
+    border-collapse: collapse;
+    background: #fff;
+    color: #1f1f1f;
+    font-size: 12.5px;
+  }
+  .sheet-view td {
+    border: 1px solid #d0d4d9;
+    padding: 0.2rem 0.45rem;
+    white-space: pre-wrap;
+    vertical-align: top;
+  }
+
   .nav-btn {
     @apply flex w-full items-center gap-3 rounded-full px-3.5 py-2 text-left;
     color: var(--muted);

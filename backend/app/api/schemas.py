@@ -21,6 +21,8 @@ class AttachmentOut(BaseModel):
     byte_size: int | None
     extract_state: str
     has_text: bool
+    # 서버에 받아 둔 파일이 있어야 /attachments/{id}/file 로 미리보기를 할 수 있다.
+    has_file: bool
 
 
 class NoticeBase(BaseModel):

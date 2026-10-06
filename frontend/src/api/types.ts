@@ -8,6 +8,8 @@ export interface Attachment {
   byte_size: number | null;
   extract_state: string;
   has_text: boolean;
+  /** 서버에 받아 둔 파일이 있어 /attachments/{id}/file 로 미리 볼 수 있다. */
+  has_file: boolean;
 }
 
 export interface Notice {

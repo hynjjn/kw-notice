@@ -247,6 +247,7 @@ def get_notice(
                 byte_size=a.byte_size,
                 extract_state=a.extract_state.value,
                 has_text=a.extract_state == ExtractState.ok,
+                has_file=a.storage_path is not None,
             )
             for a in notice.attachments
         ],

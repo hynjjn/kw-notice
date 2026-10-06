@@ -1,5 +1,8 @@
+import { useState } from "react";
 import type { NoticeDetail } from "../api/types";
 import { useSummarize } from "../hooks";
+import { AttachmentPreview } from "./AttachmentPreview";
+import { previewKind } from "./previewKind";
 import { Markdown } from "./Markdown";
 
 function Meta({ notice }: { notice: NoticeDetail }) {
@@ -64,6 +67,50 @@ function SummarizeButton({ notice }: { notice: NoticeDetail }) {
   );
 }
 
+function Attachments({ notice }: { notice: NoticeDetail }) {
+  const [open, setOpen] = useState<number | null>(null);
+
+  return (
+    <div className="mt-3.5 flex flex-wrap gap-2.5">
+      {notice.attachments.map((a, i) => {
+        const inner = (
+          <>
+            {previewKind(a) ? "👁" : "📄"} {a.filename}
+            {a.has_text && (
+              <span
+                className="rounded-full px-1.5 py-px text-[10px] font-bold"
+                style={{ background: "var(--ok-bg)", color: "var(--ok-text)" }}
+              >
+                본문 추출됨
+              </span>
+            )}
+          </>
+        );
+        const cls = "flex items-center gap-2 rounded-xl px-3 py-2 text-left text-[12.5px]";
+        const style = { border: "1px solid var(--line)", background: "var(--surface)" };
+        // 브라우저에서 그릴 수 없는 형식은 예전처럼 학교 서버에서 바로 받는다.
+        return previewKind(a) ? (
+          <button key={a.id} type="button" className={cls} style={style} onClick={() => setOpen(i)} title="미리보기">
+            {inner}
+          </button>
+        ) : (
+          <a key={a.id} href={a.url} target="_blank" rel="noreferrer" className={cls} style={style} title="다운로드">
+            {inner}
+          </a>
+        );
+      })}
+      {open !== null && (
+        <AttachmentPreview
+          attachments={notice.attachments}
+          index={open}
+          onIndex={setOpen}
+          onClose={() => setOpen(null)}
+        />
+      )}
+    </div>
+  );
+}
+
 export function ReadingPane({
   notice,
   loading,
@@ -90,30 +137,7 @@ export function ReadingPane({
       <Meta notice={notice} />
 
       {/* 첨부에 진짜 내용이 있는 공지가 많다. 본문 끝까지 내리지 않아도 보이게 위에 둔다. */}
-      {notice.attachments.length > 0 && (
-        <div className="mt-3.5 flex flex-wrap gap-2.5">
-          {notice.attachments.map((a) => (
-            <a
-              key={a.id}
-              href={a.url}
-              target="_blank"
-              rel="noreferrer"
-              className="flex items-center gap-2 rounded-xl px-3 py-2 text-[12.5px]"
-              style={{ border: "1px solid var(--line)", background: "var(--surface)" }}
-            >
-              📄 {a.filename}
-              {a.has_text && (
-                <span
-                  className="rounded-full px-1.5 py-px text-[10px] font-bold"
-                  style={{ background: "var(--ok-bg)", color: "var(--ok-text)" }}
-                >
-                  본문 추출됨
-                </span>
-              )}
-            </a>
-          ))}
-        </div>
-      )}
+      {notice.attachments.length > 0 && <Attachments notice={notice} />}
 
       {notice.ai_summary ? (
         <div
